@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ReadingMode {
+  book
+  scroll
+}
+
+model Document {
+  id               String  @id @default(uuid())
+  title            String
+  originalFileName String
+  fileHash         String?
+  fileSize         Int?
+  pageCount        Int?
+  thumbnailUri     String?
+
+  dateAdded    DateTime  @default(now())
+  lastOpenedAt DateTime?
+
+  isFavorite Boolean @default(false)
+  isFinished Boolean @default(false)
+
+  readingPosition ReadingPosition?
+  bookmarks       Bookmark[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fileHash])
+  @@index([dateAdded])
+}
+
+model ReadingPosition {
+  id         String @id @default(uuid())
+  documentId String @unique
+
+  pageNumber      Int
+  progressPercent Float
+  readingMode     ReadingMode
+
+  scrollOffsetY   Float?
+  pageCoordinateX Float?
+  pageCoordinateY Float?
+  zoomScale       Float?
+  topVisibleText  String?
+
+  updatedAt DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model Bookmark {
+  id         String @id @default(uuid())
+  documentId String
+
+  label       String?
+  pageNumber  Int
+  readingMode ReadingMode
+
+  scrollOffsetY   Float?
+  pageCoordinateX Float?
+  pageCoordinateY Float?
+  zoomScale       Float?
+  textPreview     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([createdAt])
+}
