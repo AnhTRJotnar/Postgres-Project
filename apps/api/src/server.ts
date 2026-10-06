@@ -1,6 +1,9 @@
 import Fastify from "fastify";
 import { prisma } from "./db/prisma.js";
 import { documentsRoutes } from "./routes/documents.js";
+import { readingPositionRoutes } from "./routes/readingPositions.js";
+import { bookmarkRoutes } from "./routes/bookmarks.js";
+
 
 const app = Fastify({
   logger: true,
@@ -30,6 +33,9 @@ app.get("/health/db", async (request, reply) => {
 });
 
 app.register(documentsRoutes);
+app.register(readingPositionRoutes);
+app.register(bookmarkRoutes);
+
 
 const start = async () => {
   try {
