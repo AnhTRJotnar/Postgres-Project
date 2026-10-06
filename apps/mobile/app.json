@@ -7,9 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.pdfreader.mobile",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.pdfreader.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +22,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c4d82a26-b06e-4e57-ba16-980ad7f71364"
+      }
+    },
+    "owner": "mattytr1103"
   }
 }
