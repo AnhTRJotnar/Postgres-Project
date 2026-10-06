@@ -4,6 +4,7 @@
   "main": "index.ts",
   "dependencies": {
     "@expo/ngrok": "^4.1.3",
+    "@kindle-pdf-reader/shared": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.5.0",
     "@react-navigation/native-stack": "^7.20.0",
