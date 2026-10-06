@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { prisma } from "./db/prisma.js";
+import { documentsRoutes } from "./routes/documents.js";
 
 const app = Fastify({
   logger: true,
@@ -8,6 +9,8 @@ const app = Fastify({
 app.addHook("onClose", async () => {
   await prisma.$disconnect();
 });
+
+
 
 app.get("/health", async () => {
   return {
@@ -25,6 +28,8 @@ app.get("/health/db", async (request, reply) => {
     return reply.code(503).send({ status: "error", database: "unreachable" });
   }
 });
+
+app.register(documentsRoutes);
 
 const start = async () => {
   try {
