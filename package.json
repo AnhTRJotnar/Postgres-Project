@@ -1,0 +1,8 @@
+{
+  "name": "kindle-pdf-reader",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

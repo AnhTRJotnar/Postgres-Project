@@ -1,14 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import { getDocumentById, listDocuments } from "../services/documents.js";
 import { z } from "zod";
+import { documentParamSchema } from "./validation.js";
+
 
 const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
-});
-
-const documentParamSchema = z.object({
-  id: z.string().min(1),
 });
 
 export const documentsRoutes: FastifyPluginAsync = async (app) => {
