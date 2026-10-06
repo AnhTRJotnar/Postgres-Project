@@ -1,12 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import {toIssues} from "./validation.js";
+import { documentParamSchema, toIssues } from "./validation.js";
 import { getDocumentById } from "../services/documents.js";
 import { getReadingPositionByDocumentId, saveReadingPosition } from "../services/readingPositions.js";
-
-const documentParamSchema = z.object({
-    id: z.string().min(1),
-});
 
 const readingPositionBodySchema = z.strictObject({
     pageNumber: z.number().int().min(1),

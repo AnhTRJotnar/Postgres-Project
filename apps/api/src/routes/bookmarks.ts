@@ -2,15 +2,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { createBookmark, deleteBookmark, listBookmarks } from "../services/bookmarks.js";
 import { getDocumentById } from "../services/documents.js";
-import { toIssues } from "./validation.js";
+import { bookmarkParamSchema, documentParamSchema, toIssues } from "./validation.js";
 
-const documentParamSchema = z.object({
-    id: z.string().min(1),
-});
-
-const bookmarkParamSchema = z.object({
-    bookmarkId: z.string().min(1),
-});
 
 const bookmarkBodySchema = z.strictObject({
     label: z.string().trim().min(1).max(100).optional(),
