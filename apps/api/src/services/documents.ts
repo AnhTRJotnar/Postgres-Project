@@ -52,3 +52,8 @@ export async function listDocuments(page: number, pageSize: number): Promise<Doc
         items: rows.map(toDocumentDto), page, pageSize, total,
     };
 }
+
+export async function getDocumentById(id: string): Promise<DocumentDto | null> {
+    const doc = await prisma.document.findUnique({ where: { id } });
+    return doc ? toDocumentDto(doc) : null;
+}
