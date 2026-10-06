@@ -1,7 +1,12 @@
 import Fastify from "fastify";
+import { prisma } from "./db/prisma.js";
 
 const app = Fastify({
   logger: true,
+});
+
+app.addHook("onClose", async () => {
+  await prisma.$disconnect();
 });
 
 app.get("/health", async () => {
@@ -9,6 +14,16 @@ app.get("/health", async () => {
     status: "ok",
     service: "kindle-pdf-reader-api",
   };
+});
+
+app.get("/health/db", async (request, reply) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { status: "ok", database: "reachable" };
+  } catch (error) {
+    request.log.error(error, "Database health check failed");
+    return reply.code(503).send({ status: "error", database: "unreachable" });
+  }
 });
 
 const start = async () => {
