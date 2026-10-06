@@ -2,7 +2,7 @@ import type { Document } from "../../generated/prisma/client.js";
 import { prisma } from "../db/prisma.js";
 
 
-export interface DocumentDto {
+export interface DocumentDTO {
     id: string;
     title: string;
     originalFileName: string;
@@ -17,13 +17,13 @@ export interface DocumentDto {
 }
 
 export interface DocumentPage{
-    items: DocumentDto[];
+    items: DocumentDTO[];
     page: number;
     pageSize: number;
     total: number;
 }
 
-export function toDocumentDto(doc: Document): DocumentDto {
+export function toDocumentDto(doc: Document): DocumentDTO {
     return {
         id: doc.id,
         title: doc.title,
@@ -53,7 +53,7 @@ export async function listDocuments(page: number, pageSize: number): Promise<Doc
     };
 }
 
-export async function getDocumentById(id: string): Promise<DocumentDto | null> {
+export async function getDocumentById(id: string): Promise<DocumentDTO | null> {
     const doc = await prisma.document.findUnique({ where: { id } });
     return doc ? toDocumentDto(doc) : null;
 }

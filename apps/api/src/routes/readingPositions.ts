@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import {toIssues} from "./validation.js";
 import { getDocumentById } from "../services/documents.js";
 import { getReadingPositionByDocumentId, saveReadingPosition } from "../services/readingPositions.js";
 
@@ -17,13 +18,6 @@ const readingPositionBodySchema = z.strictObject({
     zoomScale: z.number().positive().optional(),
     topVisibleText: z.string().max(500).optional(),
 });
-
-function toIssues(error: z.ZodError) {
-    return error.issues.map((issue) => ({
-        path: issue.path.join("."),
-        message: issue.message,
-    }));
-}
 
 export const readingPositionRoutes: FastifyPluginAsync = async (app) => {
     app.get("/documents/:id/reading-position", async (request, reply) => {
