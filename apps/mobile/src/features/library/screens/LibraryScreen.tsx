@@ -16,7 +16,7 @@ import type { LocalDocument } from "../../../shared/types/document";
 import { getAllDocuments } from "../../../database/repositories/documentRepository";
 import { importPdf } from "../../import/services/importPdf";
 import { registerDocument } from "../../../shared/api/documentsApi";
-import React from "react";
+
 
 type Props = NativeStackScreenProps<RootStackParamList, "Library">;
 
