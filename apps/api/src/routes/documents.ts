@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { getDocumentById, listDocuments, saveDocument } from "../services/documents.js";
+import { deleteDocument, getDocumentById, listDocuments, saveDocument } from "../services/documents.js";
 import { documentParamSchema, toIssues } from "./validation.js";
 
 const listQuerySchema = z.object({
@@ -69,4 +69,18 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
         const { document, created } = await saveDocument(params.data.id, body.data);
         return reply.status(created ? 201 : 200).send(document);
     });
+
+    app.delete("/documents/:id", async (request, reply) => {
+        const params = documentParamSchema.safeParse(request.params);
+        if (!params.success) {
+            return reply.status(400).send({ error: "Invalid document ID", issues: toIssues(params.error) });
+        }
+
+        if (!(await deleteDocument(params.data.id))) {
+            return reply.status(404).send({ error: "Document not found" });
+        }
+
+        return reply.status(204).send();
+    });
+
 };

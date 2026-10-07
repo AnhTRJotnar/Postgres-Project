@@ -98,3 +98,9 @@ export async function saveDocument(
 
     return { document: toDocumentDto(document), created: !existingDoc };
 }
+
+    // The database cascades the delete to the document's reading position and bookmarks.
+export async function deleteDocument(id: string): Promise<boolean> {
+    const { count } = await prisma.document.deleteMany({ where: { id } });
+    return count > 0;
+}
