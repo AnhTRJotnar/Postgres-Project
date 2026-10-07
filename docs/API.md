@@ -179,7 +179,7 @@ Registers a document from the phone. Creates it if the id is new, otherwise repl
 | `isFavorite` | boolean | yes | |
 | `isFinished` | boolean | yes | |
 
-Do **not** send `localUri` or `thumbnailUri`; they are rejected as unknown keys.
+Do **not** send `id` (it goes in the URL), `localUri` or `thumbnailUri` (device-only paths). All three are rejected as unknown keys.
 
 Request:
 ```json
@@ -216,9 +216,9 @@ Response (`201` the first time, `200` after that) — the saved document object:
 | `200` | Updated |
 | `400` | `id` is not a UUID, or the body breaks a rule above |
 
-From the app (the `LocalDocument` minus device-only fields):
+From the app (the `LocalDocument` minus `id` and the device-only fields):
 ```ts
-const { localUri, thumbnailUri, ...body } = doc;
+const { id, localUri, thumbnailUri, ...body } = doc;
 await fetch(`${API_URL}/documents/${doc.id}`, {
   method: "PUT",
   headers: { "Content-Type": "application/json" },
