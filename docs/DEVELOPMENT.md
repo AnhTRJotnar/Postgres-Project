@@ -54,6 +54,7 @@ Check: `docker compose ps` shows `kindle-pdf-postgres` as `(healthy)`.
 | Start PostgreSQL | `docker compose up -d` (Docker Desktop must be running) |
 | Start the API (keep the terminal open) | `npm run dev -w apps/api` |
 | Check the API | `Invoke-RestMethod http://127.0.0.1:3000/health/db` |
+| Run the API tests (PostgreSQL must be running) | `npm test -w apps/api` |
 | Type-check shared types | `npm run typecheck -w packages/shared` |
 | Type-check the API | `npm run typecheck -w apps/api` |
 | Type-check the app | `cd apps/mobile; npx tsc --noEmit` |
@@ -126,12 +127,14 @@ For the app to call the API over plain `http://`, the build must allow cleartext
 
 ## Checking a change
 
-There are no automated tests yet (`npm test` is a placeholder). Before merging, check by hand:
+Before merging:
 
 1. Type-check the workspaces you touched (commands above).
-2. API changes: run the API and call the endpoint with PowerShell, including invalid input (expect `400`) and missing records (expect `404`). [API.md](API.md) lists the expected responses.
-3. App changes: type-check and bundle the app; for behaviour, install a build on the emulator.
-4. A new route file: check it is registered in `src/server.ts`. The type-check cannot catch a missing `app.register(...)`; the route just returns Fastify's 404.
+2. API changes: `npm test -w apps/api`. All tests must pass. Add a test for new behaviour.
+3. App changes: type-check and bundle the app; for behaviour, install a build on the emulator. (The app has no automated tests yet.)
+4. A new route file: check it is registered in `src/app.ts`. The type-check cannot catch a missing `app.register(...)`; the route just returns Fastify's 404. A test that calls the route catches it.
+
+**About the API tests** (`apps/api/src/api.test.ts`): they use Node's built-in test runner and Fastify's `app.inject()`, which sends requests without opening a port, so a running dev server doesn't interfere. They run against the local development database; every test creates its own documents with random UUIDs and deletes them at the end, so existing data is untouched.
 
 ## Troubleshooting
 
@@ -140,6 +143,7 @@ There are no automated tests yet (`npm test` is a placeholder). Before merging, 
 | `npm error Missing script: "dev"` | Ran in the repo root without a workspace | `npm run dev -w apps/api` |
 | `fatal: not a git repository` | Terminal is not in the repo (often `C:\WINDOWS\system32`) | `cd E:\dev\kindle-pdf-reader` |
 | Emulator Chrome: "refused to connect" at `10.0.2.2:3000` | The API is not running | Start it and keep its terminal open |
+| Emulator: `localhost:3000` refused, but the API runs | On the emulator, `localhost` is the emulator itself | Use `http://10.0.2.2:3000` (or `adb reverse tcp:3000 tcp:3000`, which resets when the emulator restarts) |
 | `/health/db` returns `503` | PostgreSQL is not running | Start Docker Desktop, `docker compose up -d` |
 | `DATABASE_URL is not set` on API start | `apps/api/.env` missing | Copy it from `apps/api/.env.example` |
 | VS Code: `File 'expo/tsconfig.base' not found` | Editor cached the state from before `npm ci` | Ctrl+Shift+P → *TypeScript: Restart TS Server* |

@@ -43,6 +43,7 @@ Legend: ✅ done · 🔨 in progress / partly done · ⬜ not started
 - UUID validation on all ids, strict request bodies, one error format
 - npm workspaces with the shared contract in `packages/shared`
 - `.env.example` files, setup guide, API reference
+- Automated API tests: 14 tests, `npm test -w apps/api`
 
 ## Next
 
@@ -50,17 +51,19 @@ Legend: ✅ done · 🔨 in progress / partly done · ⬜ not started
 1. Merge `main` into `khanh`, run `npm ci` from the root.
 2. `react-native-pdf` reader with book and scroll modes; save and restore the position locally.
 3. Allow cleartext HTTP for development builds (`expo-build-properties`).
-4. API client: `PUT /documents/:id` after import and on app start; failures ignored.
+4. API client: `PUT /documents/:id` after import and on app start; failures ignored. 🔨 On `khanh`; to fix: leave `id` out of the body (it is rejected with 400) and remove `"jsx": "react"` from `tsconfig.json`.
 5. Store `pageCount` from `onLoadComplete` on the document.
 6. Fix the `alpha` release notes and move the tag to the `main` commit with the EAS config.
 
 **Anh (backend)**
-1. Review Khanh's reader and API client against [API.md](API.md).
-2. Automated API tests (currently checked by hand).
+1. Review Khanh's reader and API client against [API.md](API.md) when he pushes.
+2. Return a generic message on unexpected `500` errors instead of internal details.
+3. Use the shared types for API responses and derive input types from the Zod schemas.
 
 ## Known gaps
 
-- No automated tests.
+- No automated tests for the app.
+- Unexpected `500` errors include internal details (Prisma messages, file paths) in the response.
 - No authentication or HTTPS; the API listens on `127.0.0.1` only.
 - Scroll-mode restore is page-level with `react-native-pdf`.
 - No way to edit a bookmark label (delete and recreate).

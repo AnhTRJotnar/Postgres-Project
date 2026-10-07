@@ -36,7 +36,9 @@ kindle-pdf-reader/
 │   │   ├── prisma/           schema.prisma and migrations/
 │   │   ├── prisma7.config.ts Prisma config (non-default name: pass --config)
 │   │   └── src/
-│   │       ├── server.ts     App setup, health routes, route registration
+│   │       ├── app.ts        buildApp(): health routes, route registration
+│   │       ├── server.ts     Starts the app on 127.0.0.1:3000
+│   │       ├── api.test.ts   API tests (node:test + app.inject)
 │   │       ├── db/           prisma.ts: the single PrismaClient
 │   │       ├── routes/       HTTP + validation (one file per resource)
 │   │       └── services/     Database access + mapping to response shapes
@@ -58,7 +60,8 @@ kindle-pdf-reader/
 
 | Layer | Location | Responsibility | Must not |
 |---|---|---|---|
-| Server | `src/server.ts` | Create Fastify, register route plugins, health checks, shutdown hook | Contain resource logic |
+| App | `src/app.ts` | `buildApp()`: create Fastify, register route plugins, health checks, shutdown hook | Contain resource logic or start listening |
+| Server | `src/server.ts` | Call `buildApp()` and listen on port 3000 | |
 | Routes | `src/routes/*.ts` | Parse and validate params/query/body with Zod, choose the HTTP status | Query the database |
 | Validation helpers | `src/routes/validation.ts` | Shared UUID param schemas and the `toIssues` error formatter | |
 | Services | `src/services/*.ts` | Prisma queries, mapping database rows to response objects (DTOs) | Know about HTTP status codes |
