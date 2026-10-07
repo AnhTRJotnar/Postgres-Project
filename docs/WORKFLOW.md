@@ -6,11 +6,13 @@ Who owns what, and how changes move between branches. For setup and commands, se
 
 | Person | Role | Owns |
 |---|---|---|
-| Anh | Backend lead | `apps/api`, PostgreSQL and Prisma schema, API contracts, `docs/API.md`, sync planning |
-| Khanh | Mobile lead | `apps/mobile`: app shell, import, library, reader, book/scroll modes, local position and bookmarks, dark mode, EAS builds and releases |
+| Anh | Backend lead; app data and sync | `apps/api`, PostgreSQL and Prisma schema, API contracts, `docs/API.md`. In the app: `src/database/repositories/`, `src/shared/api/`, `src/features/sync/`, `src/features/bookmarks/`, `src/features/settings/` |
+| Khanh | Mobile lead; reading experience | In the app: `App.tsx` and navigation, `src/features/import/`, `src/features/library/`, `src/features/reader/` (viewer, book/scroll modes), dark mode, `app.json`, native packages, EAS builds and releases |
 | Both | | `packages/shared` (the contract), root config, `docs/` |
 
 Change the other person's area only when integration requires it, and tell them.
+
+**Inside the app**, screens never use AsyncStorage or `fetch` directly. They call the repositories in `src/database/repositories/`, which save locally and hand changes to the sync service. Agree on a repository function's signature before either side builds against it.
 
 ## Branches
 
