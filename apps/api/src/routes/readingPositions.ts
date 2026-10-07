@@ -34,6 +34,7 @@ export const readingPositionRoutes: FastifyPluginAsync = async (app) => {
         }
         return position;
     });
+    
     //Create or update reading position by document ID
     app.put("/documents/:id/reading-position", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);

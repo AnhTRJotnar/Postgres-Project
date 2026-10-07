@@ -51,6 +51,7 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
         const bookmark = await createBookmark(params.data.id, body.data);
         return reply.status(201).send(bookmark);
     });
+    
     //Delete a bookmark by its ID
     app.delete("/bookmarks/:bookmarkId", async (request, reply) => {
         const params = bookmarkParamSchema.safeParse(request.params);

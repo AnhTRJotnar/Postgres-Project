@@ -35,6 +35,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
         const { page, pageSize } = parsed.data;
         return listDocuments(page, pageSize);
     });
+    
 //View document by ID
     app.get("/documents/:id", async (request, reply) => {
         const parsed = documentParamSchema.safeParse(request.params);
@@ -54,6 +55,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
         return document;
 
     });
+
 //Create or update document by ID
     app.put("/documents/:id", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);
@@ -69,6 +71,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
         const { document, created } = await saveDocument(params.data.id, body.data);
         return reply.status(created ? 201 : 200).send(document);
     });
+
 //Delete document by ID
     app.delete("/documents/:id", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);
