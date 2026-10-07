@@ -1,12 +1,23 @@
 import type { FastifyPluginAsync } from "fastify";
-import { getDocumentById, listDocuments } from "../services/documents.js";
 import { z } from "zod";
-import { documentParamSchema } from "./validation.js";
-
+import { getDocumentById, listDocuments, saveDocument } from "../services/documents.js";
+import { documentParamSchema, toIssues } from "./validation.js";
 
 const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+const documentBodySchema = z.strictObject({
+    title: z.string().trim().min(1).max(300),
+    originalFileName: z.string().min(1).max(300),
+    fileHash: z.string().max(128).optional(),
+    fileSize: z.number().int().min(0).max(2_147_483_647).optional(),
+    pageCount: z.number().int().min(1).optional(),
+    dateAdded: z.iso.datetime(),
+    lastOpenedAt: z.iso.datetime().optional(),
+    isFavorite: z.boolean(),
+    isFinished: z.boolean(),
 });
 
 export const documentsRoutes: FastifyPluginAsync = async (app) => {
@@ -36,11 +47,26 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
                 })) 
             });
         }
-
         const document = await getDocumentById(parsed.data.id);
         if (!document) {
             return reply.status(404).send({ error: "Document not found" });
         }
         return document;
+
+    });
+
+    app.put("/documents/:id", async (request, reply) => {
+        const params = documentParamSchema.safeParse(request.params);
+        if (!params.success) {
+            return reply.status(400).send({ error: "Invalid document ID", issues: toIssues(params.error) });
+        }
+
+        const body = documentBodySchema.safeParse(request.body);
+        if (!body.success) {
+            return reply.status(400).send({ error: "Invalid document", issues: toIssues(body.error) });
+        }
+
+        const { document, created } = await saveDocument(params.data.id, body.data);
+        return reply.status(created ? 201 : 200).send(document);
     });
 };
