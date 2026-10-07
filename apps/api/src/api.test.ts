@@ -42,6 +42,11 @@ async function createDocument(overrides: Record<string, unknown> = {}): Promise<
     return id;
 }
 
+// Bookmark ids are made by the test, the same way the phone makes them.
+function putBookmark(documentId: string, bookmarkId: string, payload: Record<string, unknown>) {
+    return app.inject({ method: "PUT", url: `/documents/${documentId}/bookmarks/${bookmarkId}`, payload });
+}
+
 describe("health", () => {
     test("database is reachable", async () => {
         const res = await app.inject({ method: "GET", url: "/health/db" });
@@ -114,11 +119,8 @@ describe("documents", () => {
 
     test("DELETE returns 204, then 404, and cascades to bookmarks", async () => {
         const id = await createDocument();
-        const bookmark = await app.inject({
-            method: "POST",
-            url: `/documents/${id}/bookmarks`,
-            payload: { pageNumber: 1, readingMode: "book" },
-        });
+                const bookmarkId = randomUUID();
+        await putBookmark(id, bookmarkId, { pageNumber: 1, readingMode: "book" });
 
         const deleted = await app.inject({ method: "DELETE", url: `/documents/${id}` });
         assert.equal(deleted.statusCode, 204);
@@ -126,7 +128,7 @@ describe("documents", () => {
         const again = await app.inject({ method: "DELETE", url: `/documents/${id}` });
         assert.equal(again.statusCode, 404);
 
-        const bookmarkGone = await app.inject({ method: "DELETE", url: `/bookmarks/${bookmark.json().id}` });
+        const bookmarkGone = await app.inject({ method: "DELETE", url: `/bookmarks/${bookmarkId}` });
         assert.equal(bookmarkGone.statusCode, 404);
     });
 });
@@ -191,41 +193,69 @@ describe("reading position", () => {
 });
 
 describe("bookmarks", () => {
-    test("POST creates; GET lists in reading order", async () => {
+    test("PUT creates with 201 under the phone's id; GET lists in reading order", async () => {
         const id = await createDocument();
-        const url = `/documents/${id}/bookmarks`;
+        const laterId = randomUUID();
 
-        const later = await app.inject({ method: "POST", url, payload: { label: "Chapter 3", pageNumber: 40, readingMode: "scroll" } });
+        const later = await putBookmark(id, laterId, { label: "Chapter 3", pageNumber: 40, readingMode: "scroll" });
         assert.equal(later.statusCode, 201);
-        const earlier = await app.inject({ method: "POST", url, payload: { pageNumber: 5, readingMode: "book" } });
+        assert.equal(later.json().id, laterId);
+        const earlier = await putBookmark(id, randomUUID(), { pageNumber: 5, readingMode: "book" });
         assert.equal(earlier.statusCode, 201);
 
-        const list = await app.inject({ method: "GET", url });
+        const list = await app.inject({ method: "GET", url: `/documents/${id}/bookmarks` });
         assert.equal(list.statusCode, 200);
         assert.deepEqual(list.json().map((b: { pageNumber: number }) => b.pageNumber), [5, 40]);
     });
 
-    test("POST rejects a whitespace-only label and page 0, reporting both", async () => {
+    test("PUT repeated is 200, makes no copy, and clears omitted fields", async () => {
         const id = await createDocument();
-        const res = await app.inject({
-            method: "POST",
-            url: `/documents/${id}/bookmarks`,
-            payload: { label: "   ", pageNumber: 0, readingMode: "book" },
-        });
+        const bookmarkId = randomUUID();
+
+        await putBookmark(id, bookmarkId, { label: "Intro", pageNumber: 3, readingMode: "book", zoomScale: 1.5 });
+        const retry = await putBookmark(id, bookmarkId, { pageNumber: 3, readingMode: "book" });
+        assert.equal(retry.statusCode, 200);
+        assert.equal("label" in retry.json(), false);
+        assert.equal("zoomScale" in retry.json(), false);
+
+        const list = await app.inject({ method: "GET", url: `/documents/${id}/bookmarks` });
+        assert.equal(list.json().length, 1);
+    });
+
+    test("PUT returns 409 when the id belongs to another document's bookmark", async () => {
+        const first = await createDocument();
+        const second = await createDocument();
+        const bookmarkId = randomUUID();
+
+        await putBookmark(first, bookmarkId, { pageNumber: 1, readingMode: "book" });
+        const res = await putBookmark(second, bookmarkId, { pageNumber: 1, readingMode: "book" });
+        assert.equal(res.statusCode, 409);
+    });
+
+    test("PUT rejects a whitespace-only label and page 0, reporting both", async () => {
+        const id = await createDocument();
+        const res = await putBookmark(id, randomUUID(), { label: "   ", pageNumber: 0, readingMode: "book" });
         assert.equal(res.statusCode, 400);
         assert.equal(res.json().issues.length, 2);
     });
 
+    test("PUT rejects a non-UUID bookmark id and an unknown document", async () => {
+        const id = await createDocument();
+        const badId = await putBookmark(id, "not-a-uuid", { pageNumber: 1, readingMode: "book" });
+        assert.equal(badId.statusCode, 400);
+
+        const unknownDoc = await putBookmark(randomUUID(), randomUUID(), { pageNumber: 1, readingMode: "book" });
+        assert.equal(unknownDoc.statusCode, 404);
+    });
+
     test("DELETE returns 204, then 404", async () => {
         const id = await createDocument();
-        const created = await app.inject({
-            method: "POST",
-            url: `/documents/${id}/bookmarks`,
-            payload: { pageNumber: 1, readingMode: "book" },
-        });
-        const url = `/bookmarks/${created.json().id}`;
+        const bookmarkId = randomUUID();
+        await putBookmark(id, bookmarkId, { pageNumber: 1, readingMode: "book" });
+        const url = `/bookmarks/${bookmarkId}`;
 
         assert.equal((await app.inject({ method: "DELETE", url })).statusCode, 204);
         assert.equal((await app.inject({ method: "DELETE", url })).statusCode, 404);
     });
 });
+

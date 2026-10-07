@@ -9,6 +9,12 @@ export const bookmarkParamSchema = z.object({
     bookmarkId: z.uuid(),
 });
 
+// For routes with both ids: /documents/:id/bookmarks/:bookmarkId
+export const documentBookmarkParamSchema = z.object({
+    id: z.uuid(),
+    bookmarkId: z.uuid(),
+});
+
 // One error shape for every endpoint: [{ path, message }]
 export function toIssues(error: ZodError) {
     return error.issues.map((issue) => ({

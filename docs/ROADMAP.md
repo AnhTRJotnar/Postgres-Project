@@ -25,13 +25,13 @@ Legend: ✅ done · 🔨 in progress / partly done · ⬜ not started
 | 4 | Reader placeholder | Khanh | ✅ | |
 | 5 | Real PDF viewer | Khanh | ⬜ | `react-native-pdf` 7.0.1+ chosen; needs a new EAS build |
 | 6 | Book mode and scroll mode | Khanh | ⬜ | `enablePaging` + `horizontal` for book mode |
-| 7 | Save reading position locally | Anh + Khanh | ⬜ | Anh: `readingPositionRepository`; Khanh: reader calls it with page, progress, mode, zoom |
+| 7 | Save reading position locally | Anh + Khanh | 🔨 | Anh: `readingPositionRepository` ✅; Khanh: reader calls it with page, progress, mode, zoom |
 | 8 | Restore reading position | Khanh | ⬜ | Exact page; scroll mode lands at the top of the page |
-| 9 | Position bookmarks | Anh + Khanh | ⬜ | Anh: `bookmarkRepository` + Bookmarks screen; Khanh: "add bookmark" in the reader. API ready |
+| 9 | Position bookmarks | Anh + Khanh | 🔨 | Anh: `bookmarkRepository` ✅, Bookmarks screen; Khanh: "add bookmark" in the reader. API ready |
 | 10 | Dark mode | Khanh | ⬜ | `app.json` still has `userInterfaceStyle: "light"` |
 | 11 | Backend PostgreSQL setup | Anh | ✅ | PostgreSQL 17 in Docker, Prisma 7 |
-| 12 | API endpoints | Anh | ✅ | 11 endpoints, see [API.md](API.md) |
-| 13 | Sync | Anh | 🔨 | Server side ready; app client on `khanh` needs fixes, then Anh owns it |
+| 12 | API endpoints | Anh | ✅ | 11 endpoints, see [API.md](API.md). Bookmarks saved with `PUT` under the phone's id |
+| 13 | Sync | Anh | 🔨 | Server side ready; app registers documents. Positions, bookmarks and deletes next |
 | 14 | AI features | | ⬜ | After the MVP |
 
 ## Done: backend
@@ -39,29 +39,33 @@ Legend: ✅ done · 🔨 in progress / partly done · ⬜ not started
 - PostgreSQL in Docker, Prisma schema and first migration
 - Documents: list (paginated), get, register/update (`PUT`), delete (cascades)
 - Reading position: get, save (upsert)
-- Bookmarks: list, create, delete
+- Bookmarks: list, save (`PUT` under the phone's id, safe to repeat), delete
 - UUID validation on all ids, strict request bodies, one error format
 - npm workspaces with the shared contract in `packages/shared`
 - `.env.example` files, setup guide, API reference
-- Automated API tests: 14 tests, `npm test -w apps/api`
+- Automated API tests: 17 tests, `npm test -w apps/api`
+
+## Done: app data (Anh)
+
+- `readingPositionRepository` and `bookmarkRepository` (AsyncStorage, phone-made UUIDs)
+- Document registration fixed (`id` and device-only fields left out of the body)
 
 ## Next
 
 **Khanh (reading experience)**
-1. On `khanh`: leave `id` out of the `PUT /documents/:id` body and remove `"jsx": "react"` from `tsconfig.json`; merge `main` into `khanh`, then merge `khanh` into `main`. After that, `src/shared/api/` belongs to Anh.
+1. Merge `main` into `khanh`. `src/shared/api/` belongs to Anh now.
 2. `react-native-pdf` reader with book and scroll modes.
-3. Save and restore the position through `readingPositionRepository` (from Anh).
+3. Save and restore the position through `readingPositionRepository`; "add bookmark" through `bookmarkRepository.addBookmark`.
 4. Allow cleartext HTTP for development builds (`expo-build-properties`).
 5. Store `pageCount` from `onLoadComplete` on the document.
 6. Fix the `alpha` release notes and move the tag to the `main` commit with the EAS config.
 7. Dark mode.
 
 **Anh (app data, sync, backend)**
-1. `readingPositionRepository` and `bookmarkRepository` (AsyncStorage) — unblocks Khanh's step 3.
-2. Sync service: register documents at app start, then positions, bookmarks and deletes in the background; request timeouts.
-3. Bookmarks screen and Settings screen.
-4. API: generic message on unexpected `500` errors instead of internal details.
-5. API: use the shared types for responses and derive input types from the Zod schemas.
+1. Sync service: register documents at app start, then positions, bookmarks and deletes in the background; request timeouts.
+2. Bookmarks screen and Settings screen.
+3. API: generic message on unexpected `500` errors instead of internal details.
+4. API: use the shared types for responses and derive input types from the Zod schemas.
 
 ## Known gaps
 

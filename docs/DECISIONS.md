@@ -108,3 +108,12 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 **Decision.** No auth, no HTTPS. The API listens on `127.0.0.1`.
 
 **Consequences.** Not deployable as-is. Accounts, auth and HTTPS come with real sync.
+
+## D12. Bookmark ids are also made on the phone
+*2026-10-07*
+
+**Context.** Bookmarks are created offline first. With `POST` and a server-made id, the phone's id and the server's id differ, so a sync `DELETE` misses, and a retried `POST` creates a duplicate.
+
+**Decision.** Same rule as D4: the app makes the id, and the API saves it with `PUT /documents/:id/bookmarks/:bookmarkId` (201 created, 200 replaced). `POST /documents/:id/bookmarks` is removed. A bookmark never moves between documents (409).
+
+**Consequences.** Every bookmark write is safe to retry. Deleting by the phone's id works on the server too.

@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { createBookmark, deleteBookmark, listBookmarks } from "../services/bookmarks.js";
+import { saveBookmark, deleteBookmark, listBookmarks } from "../services/bookmarks.js";
 import { getDocumentById } from "../services/documents.js";
-import { bookmarkParamSchema, documentParamSchema, toIssues } from "./validation.js";
+import { bookmarkParamSchema, documentParamSchema, documentBookmarkParamSchema, toIssues } from "./validation.js";
 
 
 const bookmarkBodySchema = z.strictObject({
@@ -32,11 +32,11 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
         return listBookmarks(params.data.id);
     });
 
-    //Create a new bookmark for a document
-    app.post("/documents/:id/bookmarks", async (request, reply) => {
-        const params = documentParamSchema.safeParse(request.params);
+        //Create or replace a bookmark under the phone's id. Safe to repeat.
+    app.put("/documents/:id/bookmarks/:bookmarkId", async (request, reply) => {
+        const params = documentBookmarkParamSchema.safeParse(request.params);
         if (!params.success) {
-            return reply.status(400).send({ error: "Invalid document ID", issues: toIssues(params.error) });
+            return reply.status(400).send({ error: "Invalid ID", issues: toIssues(params.error) });
         }
 
         const body = bookmarkBodySchema.safeParse(request.body);
@@ -48,8 +48,12 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(404).send({ error: "Document not found" });
         }
 
-        const bookmark = await createBookmark(params.data.id, body.data);
-        return reply.status(201).send(bookmark);
+        const saved = await saveBookmark(params.data.id, params.data.bookmarkId, body.data);
+        if (!saved) {
+            return reply.status(409).send({ error: "Bookmark belongs to another document" });
+        }
+
+        return reply.status(saved.created ? 201 : 200).send(saved.bookmark);
     });
     
     //Delete a bookmark by its ID

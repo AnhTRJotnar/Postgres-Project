@@ -57,12 +57,40 @@ export async function listBookmarks(documentId: string): Promise<BookmarkDTO[]> 
     return bookmarks.map(toBookmarkDTO);
 }
 
-// Create a new bookmark for a given document.
-export async function createBookmark(documentId: string, input: BookmarkInput): Promise<BookmarkDTO> {
-    const bookmark = await prisma.bookmark.create({
-        data: { documentId, ...input },
+// Save a bookmark under the phone's id: create it if new, otherwise replace it.
+// Safe to repeat: a retried request updates the same row instead of adding a copy.
+// Returns null if the id already belongs to a bookmark of another document.
+export async function saveBookmark(
+    documentId: string,
+    bookmarkId: string,
+    input: BookmarkInput,
+): Promise<{ bookmark: BookmarkDTO; created: boolean } | null> {
+    const existing = await prisma.bookmark.findUnique({ where: { id: bookmarkId }, select: { documentId: true } });
+
+    // A bookmark never moves to another document.
+    if (existing && existing.documentId !== documentId) {
+        return null;
+    }
+
+    // PUT replaces the bookmark: omitted optional fields are cleared.
+    const data = {
+        label: input.label ?? null,
+        pageNumber: input.pageNumber,
+        readingMode: input.readingMode,
+        scrollOffsetY: input.scrollOffsetY ?? null,
+        pageCoordinateX: input.pageCoordinateX ?? null,
+        pageCoordinateY: input.pageCoordinateY ?? null,
+        zoomScale: input.zoomScale ?? null,
+        textPreview: input.textPreview ?? null,
+    };
+
+    const bookmark = await prisma.bookmark.upsert({
+        where: { id: bookmarkId },
+        create: { id: bookmarkId, documentId, ...data },
+        update: data,
     });
-    return toBookmarkDTO(bookmark);
+
+    return { bookmark: toBookmarkDTO(bookmark), created: !existing };
 }
 
 // Delete a bookmark by its ID. Returns true if the bookmark was deleted, false if it did not exist.

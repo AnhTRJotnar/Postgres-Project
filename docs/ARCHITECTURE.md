@@ -166,7 +166,7 @@ The API listens on `127.0.0.1` only and has no authentication or HTTPS. That is 
 
 1. After import, and for every document on app start: `PUT /documents/:id` (safe to repeat).
 2. When reading: save the position locally first, then `PUT /documents/:id/reading-position` in the background.
-3. Bookmarks: `POST` on create, `DELETE` on remove.
+3. Bookmarks: save locally with a phone-made UUID, then `PUT /documents/:id/bookmarks/:bookmarkId` (safe to repeat); `DELETE /bookmarks/:bookmarkId` on remove (404 = already gone).
 4. Removing from library: delete the local file and record, then `DELETE /documents/:id` (404 = already gone).
 
 Conflict rule for now: the last write wins.

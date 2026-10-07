@@ -334,7 +334,7 @@ Saved positions the reader can jump back to. A document can have many.
 
 | Field | Type | Always present | Notes |
 |---|---|---|---|
-| `id` | UUID | yes | Set by the server |
+| `id` | UUID | yes | Made on the phone (`Crypto.randomUUID()`), sent in the URL |
 | `documentId` | UUID | yes | |
 | `label` | string | no | |
 | `pageNumber` | integer | yes | |
@@ -344,9 +344,11 @@ Saved positions the reader can jump back to. A document can have many.
 | `createdAt` | ISO date | yes | |
 | `updatedAt` | ISO date | yes | |
 
-### `POST /documents/:id/bookmarks`
+### `PUT /documents/:id/bookmarks/:bookmarkId`
 
-Creates a bookmark. Keep the returned `id`: it is needed to delete the bookmark.
+Saves a bookmark under the phone's id. Creates it if the id is new, otherwise replaces it. **Safe to call repeatedly**: a retried request updates the same bookmark instead of adding a copy. The document must already be registered with `PUT /documents/:id`.
+
+`createdAt` is set by the server on the first save and kept after that.
 
 **Body**
 
@@ -361,12 +363,14 @@ Creates a bookmark. Keep the returned `id`: it is needed to delete the bookmark.
 | `zoomScale` | number | no | > 0 |
 | `textPreview` | string | no | ≤ 500 chars |
 
-Request:
+Do **not** send `id` (it goes in the URL), `documentId`, `createdAt` or `updatedAt`. They are rejected as unknown keys. Leaving out an optional field clears it.
+
+Request (`PUT /documents/3d23972a-929e-49c7-a958-0a6bc5fbfdf0/bookmarks/c5ce14d4-b5df-48a4-9b05-c511541da8fa`):
 ```json
 { "label": "Chapter 3", "pageNumber": 40, "readingMode": "book", "zoomScale": 1.0 }
 ```
 
-Response `201`:
+Response (`201` the first time, `200` after that):
 ```json
 {
   "id": "c5ce14d4-b5df-48a4-9b05-c511541da8fa",
@@ -383,8 +387,16 @@ Response `201`:
 | Status | When |
 |---|---|
 | `201` | Created |
-| `400` | `id` is not a UUID, or the body breaks a rule above |
-| `404` | `{"error":"Document not found"}` |
+| `200` | Updated |
+| `400` | `id` or `bookmarkId` is not a UUID, or the body breaks a rule above |
+| `404` | `{"error":"Document not found"}` — register the document first |
+| `409` | `{"error":"Bookmark belongs to another document"}` — the id is already used by a bookmark of a different document |
+
+From the app (the local `Bookmark` minus the fields the server sets):
+```ts
+const { id, documentId, createdAt, updatedAt, ...body } = bookmark;
+await apiRequest(`/documents/${documentId}/bookmarks/${id}`, { method: "PUT", body: JSON.stringify(body) });
+```
 
 ### `GET /documents/:id/bookmarks`
 
@@ -404,7 +416,7 @@ All bookmarks of a document in reading order: lowest `pageNumber` first, then ol
 |---|---|
 | `204` | Deleted (no body) |
 | `400` | `bookmarkId` is not a UUID |
-| `404` | `{"error":"Bookmark not found"}` |
+| `404` | `{"error":"Bookmark not found"}` — treat as **already deleted**, not as a failure |
 
 ---
 
