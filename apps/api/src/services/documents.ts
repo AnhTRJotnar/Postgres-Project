@@ -9,7 +9,6 @@ export interface DocumentDTO {
     fileHash?: string;
     fileSize?: number;
     pageCount?: number;
-    thumbnailUri?: string;
     dateAdded: string;
     lastOpenedAt?: string;
     isFavorite: boolean;
@@ -33,7 +32,6 @@ export function toDocumentDto(doc: Document): DocumentDTO {
         fileHash: doc.fileHash ?? undefined,
         fileSize: doc.fileSize ?? undefined,
         pageCount: doc.pageCount ?? undefined,
-        thumbnailUri: doc.thumbnailUri ?? undefined,
         dateAdded: doc.dateAdded.toISOString(),
         lastOpenedAt: doc.lastOpenedAt?.toISOString(),
         isFavorite: doc.isFavorite,

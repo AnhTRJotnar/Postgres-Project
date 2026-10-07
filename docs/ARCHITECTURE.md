@@ -146,7 +146,8 @@ erDiagram
 
 - Deleting a document cascades to its reading position and bookmarks (`ON DELETE CASCADE`).
 - `Document` also has `createdAt`/`updatedAt` columns that the API does not expose.
-- `localUri` and `thumbnailUri` exist only on the phone. (`thumbnailUri` has a column but the API never writes it.)
+- `localUri` and `thumbnailUri` exist only on the phone; the server has no columns for them.
+- Bookmarks have one index, `(documentId, pageNumber, createdAt)`, matching the list query's filter and sort.
 - Schema source: `apps/api/prisma/schema.prisma`; migrations in `apps/api/prisma/migrations/`.
 
 ## Reading position precision

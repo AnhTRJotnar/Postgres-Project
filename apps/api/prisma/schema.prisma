@@ -19,7 +19,6 @@ model Document {
   fileHash         String?
   fileSize         Int?
   pageCount        Int?
-  thumbnailUri     String?
 
   dateAdded    DateTime  @default(now())
   lastOpenedAt DateTime?
@@ -40,7 +39,6 @@ model Document {
 model ReadingPosition {
   id         String @id @default(uuid())
   documentId String @unique
-
   pageNumber      Int
   progressPercent Float
   readingMode     ReadingMode
@@ -75,6 +73,6 @@ model Bookmark {
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  @@index([documentId])
-  @@index([createdAt])
+  // Matches the only query: a document's bookmarks in reading order.
+  @@index([documentId, pageNumber, createdAt])
 }
