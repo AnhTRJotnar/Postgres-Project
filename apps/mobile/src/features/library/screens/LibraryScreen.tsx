@@ -15,6 +15,7 @@ import type { RootStackParamList } from "../../../app/navigation/types";
 import type { LocalDocument } from "../../../shared/types/document";
 import { getAllDocuments } from "../../../database/repositories/documentRepository";
 import { importPdf } from "../../import/services/importPdf";
+import { registerDocument } from "../../../shared/api/documentsApi";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Library">;
 
@@ -23,14 +24,24 @@ export default function LibraryScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      getAllDocuments().then(setDocuments);
+      getAllDocuments().then((docs) => {
+        setDocuments(docs);
+
+        Promise.allSettled(docs.map(registerDocument));
+      });
     }, [])
   );
 
   async function handleImport() {
     try {
       const doc = await importPdf();
-      if (doc) setDocuments((prev) => [doc, ...prev]);
+      if (doc) {
+        setDocuments((prev) => [doc, ...prev]);
+
+        registerDocument(doc).catch((error) => {
+          console.warn("Document will sync later:", error);
+        });
+      }
     } catch (error) {
       Alert.alert(
         "Could not import",
@@ -70,6 +81,7 @@ export default function LibraryScreen({ navigation }: Props) {
     </View>
   )
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
