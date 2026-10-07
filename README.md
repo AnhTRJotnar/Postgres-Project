@@ -1,44 +1,36 @@
 # PDF Reader
 
-A Kindle-style mobile PDF reader for casual readers. Import PDFs from your phone, read them in book mode or scroll mode, and resume exactly where you stopped.
-
-## Features (MVP)
-
-- Import PDFs and keep them in a local library
-- Book mode (one page at a time) and scroll mode
-- Exact resume position and position bookmarks
-- Dark mode and offline reading
-
-## Planned
-
-- Cloud sync with accounts
-- AI reference assistant with source quotes and page links
-
-## Project structure
-
-- `app/` - React Native (Expo) mobile app
-- `backend/` - Node.js + TypeScript API with PostgreSQL
+A Kindle-style mobile PDF reader for casual readers. Import PDFs from your phone, read them in book mode or scroll mode, and resume where you stopped. Offline-first: everything works on the phone; a backend keeps a copy for future sync.
 
 ## Status
 
-Early setup. Folder structure only, no code yet.
+Early MVP, Android first.
 
-## Build the mobile app with EAS
+- **App:** import PDFs, local library, duplicate detection. Alpha APK released. The reader is still a placeholder.
+- **Backend:** API for documents, reading positions and bookmarks, on PostgreSQL. Complete for the MVP.
+- **Not yet:** the PDF viewer, resuming the reading position, and the app calling the API.
 
-From `apps/mobile`, log in to Expo and link this app to an Expo project once:
+Details: [docs/ROADMAP.md](docs/ROADMAP.md).
 
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest init
-```
+## Repository
 
-Build an installable Android APK in the cloud:
+| Path | What |
+|---|---|
+| `apps/mobile` | Expo / React Native app (TypeScript, Android first) |
+| `apps/api` | Fastify + Prisma + PostgreSQL API (TypeScript) |
+| `packages/shared` | Types shared by app and API |
+| `docs` | Project documentation |
 
-```bash
-npm run build:android
-```
+## Documentation
 
-When the build finishes, open the build URL printed by EAS or run `npx eas-cli@latest build:list` and choose **Install**. Android can install the APK directly. iOS internal builds require Apple Developer credentials and registered devices.
+| Read this | When you want to know |
+|---|---|
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | How to set up, run, check and build; what to do when something breaks |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the app and API are structured and how data flows |
+| [docs/API.md](docs/API.md) | How to call each endpoint |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md) | Who owns what; branches, merging, releases |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | What's done and what's next |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Why things are built the way they are |
 
 ## Run the API locally
 
@@ -67,3 +59,7 @@ npm run dev -w apps/api
 
 Check `http://127.0.0.1:3000/health/db` returns `{"status":"ok","database":"reachable"}`.
 From the Android emulator, the API is at `http://10.0.2.2:3000`.
+
+## Run the app
+
+The app is tested on the Android Emulator. Emulator setup, installing an APK, and building with EAS (`npm run build:android` in `apps/mobile`) are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#android-emulator).

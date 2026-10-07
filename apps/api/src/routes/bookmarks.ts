@@ -16,7 +16,9 @@ const bookmarkBodySchema = z.strictObject({
     textPreview: z.string().max(500).optional(),
 });
 
+// Routes for managing bookmarks associated with documents
 export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
+    //Get bookmarks by document ID
     app.get("/documents/:id/bookmarks", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);
         if (!params.success) {
@@ -30,6 +32,7 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
         return listBookmarks(params.data.id);
     });
 
+    //Create a new bookmark for a document
     app.post("/documents/:id/bookmarks", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);
         if (!params.success) {
@@ -48,7 +51,7 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
         const bookmark = await createBookmark(params.data.id, body.data);
         return reply.status(201).send(bookmark);
     });
-
+    //Delete a bookmark by its ID
     app.delete("/bookmarks/:bookmarkId", async (request, reply) => {
         const params = bookmarkParamSchema.safeParse(request.params);
         if (!params.success) {

@@ -15,7 +15,9 @@ const readingPositionBodySchema = z.strictObject({
     topVisibleText: z.string().max(500).optional(),
 });
 
+// Routes for managing reading positions associated with documents
 export const readingPositionRoutes: FastifyPluginAsync = async (app) => {
+    //Get reading position by document ID   
     app.get("/documents/:id/reading-position", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);
         if (!params.success) {
@@ -32,7 +34,7 @@ export const readingPositionRoutes: FastifyPluginAsync = async (app) => {
         }
         return position;
     });
-
+    //Create or update reading position by document ID
     app.put("/documents/:id/reading-position", async (request, reply) => {
         const params = documentParamSchema.safeParse(request.params);
         if (!params.success) {

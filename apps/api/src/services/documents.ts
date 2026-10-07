@@ -1,7 +1,7 @@
 import type { Document } from "../../generated/prisma/client.js";
 import { prisma } from "../db/prisma.js";
 
-
+// Represents a document in the API, with optional fields omitted (never null).
 export interface DocumentDTO {
     id: string;
     title: string;
@@ -16,6 +16,7 @@ export interface DocumentDTO {
     isFinished: boolean;
 }
 
+// Represents a paginated list of documents, including the current page, page size, and total number of documents.
 export interface DocumentPage{
     items: DocumentDTO[];
     page: number;
@@ -23,6 +24,7 @@ export interface DocumentPage{
     total: number;
 }
 
+// Convert a Document from the database to a DocumentDTO for API responses.
 export function toDocumentDto(doc: Document): DocumentDTO {
     return {
         id: doc.id,
@@ -39,6 +41,7 @@ export function toDocumentDto(doc: Document): DocumentDTO {
     };
 }
 
+// List documents with pagination, ordered by date added (newest first) and then by ID (ascending).
 export async function listDocuments(page: number, pageSize: number): Promise<DocumentPage> {
     const [rows, total] = await prisma.$transaction([
         prisma.document.findMany({
@@ -53,11 +56,13 @@ export async function listDocuments(page: number, pageSize: number): Promise<Doc
     };
 }
 
+// Get a document by its ID. Returns null if the document does not exist.
 export async function getDocumentById(id: string): Promise<DocumentDTO | null> {
     const doc = await prisma.document.findUnique({ where: { id } });
     return doc ? toDocumentDto(doc) : null;
 }
 
+// Input for creating or updating a document. All optional values are omitted, never null.
 export interface DocumentInput {
     title: string;
     originalFileName: string;
@@ -70,6 +75,7 @@ export interface DocumentInput {
     isFinished: boolean;
 }
 
+// Save a document by ID. If the document exists, it is updated; if not, it is created. Returns the saved document and a boolean indicating whether it was created (true) or updated (false).
 export async function saveDocument(
     id: string,
     input: DocumentInput,
@@ -99,7 +105,7 @@ export async function saveDocument(
     return { document: toDocumentDto(document), created: !existingDoc };
 }
 
-    // The database cascades the delete to the document's reading position and bookmarks.
+// The database cascades the delete to the document's reading position and bookmarks.
 export async function deleteDocument(id: string): Promise<boolean> {
     const { count } = await prisma.document.deleteMany({ where: { id } });
     return count > 0;

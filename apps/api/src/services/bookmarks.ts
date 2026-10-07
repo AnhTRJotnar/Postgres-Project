@@ -17,6 +17,7 @@ export interface BookmarkDTO {
     updatedAt: string;
 }
 
+// Input for creating a new bookmark. All optional values are omitted, never null.
 export interface BookmarkInput {
     label?: string;
     pageNumber: number;
@@ -28,6 +29,7 @@ export interface BookmarkInput {
     textPreview?: string;
 }
 
+// Functions for converting between Bookmark and BookmarkDTO, and for listing, creating, and deleting bookmarks.
 export function toBookmarkDTO(bookmark: Bookmark): BookmarkDTO {
     return {
         id: bookmark.id,
@@ -45,6 +47,7 @@ export function toBookmarkDTO(bookmark: Bookmark): BookmarkDTO {
     };
 }
 
+// List all bookmarks for a given document, ordered by page number and creation time.
 export async function listBookmarks(documentId: string): Promise<BookmarkDTO[]> {
     const bookmarks = await prisma.bookmark.findMany({
         where: { documentId },
@@ -54,6 +57,7 @@ export async function listBookmarks(documentId: string): Promise<BookmarkDTO[]> 
     return bookmarks.map(toBookmarkDTO);
 }
 
+// Create a new bookmark for a given document.
 export async function createBookmark(documentId: string, input: BookmarkInput): Promise<BookmarkDTO> {
     const bookmark = await prisma.bookmark.create({
         data: { documentId, ...input },
@@ -61,6 +65,7 @@ export async function createBookmark(documentId: string, input: BookmarkInput): 
     return toBookmarkDTO(bookmark);
 }
 
+// Delete a bookmark by its ID. Returns true if the bookmark was deleted, false if it did not exist.
 export async function deleteBookmark(bookmarkId: string): Promise<boolean> {
     const { count } = await prisma.bookmark.deleteMany({ where: { id: bookmarkId } });
     return count > 0;

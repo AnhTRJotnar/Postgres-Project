@@ -1,6 +1,7 @@
 import type { ReadingMode, ReadingPosition } from "../../generated/prisma/client.js";
 import { prisma } from "../db/prisma.js";
 
+// Matches ReadingPosition in packages/shared. Missing optional values are omitted, never null.
 export interface ReadingPositionDTO {
     id: string;
     documentId: string;
@@ -15,6 +16,7 @@ export interface ReadingPositionDTO {
     updatedAt: string;
 }
 
+// Input for creating or updating a reading position. All optional values are omitted, never null.
 export interface ReadingPositionInput {
     pageNumber: number;
     progressPercent: number;
@@ -26,6 +28,7 @@ export interface ReadingPositionInput {
     topVisibleText?: string;
 }
 
+// Convert a ReadingPosition from the database to a ReadingPositionDTO for API responses.
 export function toReadingPositionDto(pos: ReadingPosition): ReadingPositionDTO {
     return {
         id: pos.id,
@@ -42,11 +45,13 @@ export function toReadingPositionDto(pos: ReadingPosition): ReadingPositionDTO {
     };
 }
 
+// Get the reading position for a given document. Returns null if no reading position exists for the document.
 export async function getReadingPositionByDocumentId(documentId: string): Promise<ReadingPositionDTO | null> {
     const pos = await prisma.readingPosition.findUnique({ where: { documentId } });
     return pos ? toReadingPositionDto(pos) : null;
 }
 
+// Create or update the reading position for a given document. If a reading position exists, it is updated; if not, it is created. Returns the saved reading position.
 export async function saveReadingPosition(
     documentId: string,
     input: ReadingPositionInput,
