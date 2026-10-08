@@ -30,6 +30,10 @@ Run from the repo root.
 Copy-Item .env.example .env
 Copy-Item apps/api/.env.example apps/api/.env
 
+# 1b. Login secret: generate your own, then paste it as JWT_SECRET="..." in apps/api/.env.
+#     Every developer and every server gets a different one. Never share or commit it.
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+
 # 2. Install all workspaces (one install for api, mobile and shared)
 npm ci
 
@@ -146,6 +150,7 @@ Before merging:
 | Emulator: `localhost:3000` refused, but the API runs | On the emulator, `localhost` is the emulator itself | Use `http://10.0.2.2:3000` (or `adb reverse tcp:3000 tcp:3000`, which resets when the emulator restarts) |
 | `/health/db` returns `503` | PostgreSQL is not running | Start Docker Desktop, `docker compose up -d` |
 | `DATABASE_URL is not set` on API start | `apps/api/.env` missing | Copy it from `apps/api/.env.example` |
+| `JWT_SECRET is missing or shorter than 43 characters` on API start or in tests | No `JWT_SECRET` line in `apps/api/.env` (setting it only in the terminal is lost when the terminal closes) | Generate one (First-time setup, step 1b) and add it to `apps/api/.env` |
 | VS Code: `File 'expo/tsconfig.base' not found` | Editor cached the state from before `npm ci` | Ctrl+Shift+P → *TypeScript: Restart TS Server* |
 | `Access to the path ... is denied` when creating folders | No write access at the drive root | Use a folder you own, e.g. under `E:\dev` |
 | `adb` not recognized | Terminal opened before `Path` was updated | Restart VS Code |

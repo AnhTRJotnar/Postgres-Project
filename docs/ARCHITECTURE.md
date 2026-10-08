@@ -25,7 +25,7 @@ flowchart LR
 
 **Online-first (D13).** The server holds the library: documents, reading positions, bookmarks and, once uploads exist, the PDF files. The app loads from the API and sends every change to it. The phone keeps a cache, so books already downloaded stay readable offline and offline changes are sent later. Every request belongs to a logged-in user (D14).
 
-**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone, and its only API call registers documents (`PUT /documents/:id`) in the background from the library screen. There are no accounts yet. Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Planned: accounts](#planned-accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
+**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone, and its only API call registers documents (`PUT /documents/:id`) in the background from the library screen. There are no accounts yet. Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Accounts](#accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
 
 ## Repository layout
 
@@ -36,9 +36,11 @@ kindle-pdf-reader/
 │   │   ├── prisma/           schema.prisma and migrations/
 │   │   ├── prisma7.config.ts Prisma config (non-default name: pass --config)
 │   │   └── src/
-│   │       ├── app.ts        buildApp(): health routes, route registration
+│   │       ├── app.ts        buildApp(): error handler, rate-limit plugin, health routes, route registration
+│   │       ├── config.ts     Auth settings; refuses to start without a strong JWT_SECRET
 │   │       ├── server.ts     Starts the app on 127.0.0.1:3000
 │   │       ├── api.test.ts   API tests (node:test + app.inject)
+│   │       ├── auth.test.ts  Auth and security tests
 │   │       ├── db/           prisma.ts: the single PrismaClient
 │   │       ├── routes/       HTTP + validation (one file per resource)
 │   │       └── services/     Database access + mapping to response shapes
@@ -60,10 +62,12 @@ kindle-pdf-reader/
 
 | Layer | Location | Responsibility | Must not |
 |---|---|---|---|
-| App | `src/app.ts` | `buildApp()`: create Fastify, register route plugins, health checks, shutdown hook | Contain resource logic or start listening |
+| App | `src/app.ts` | `buildApp()`: create Fastify, generic `500` error handler, rate-limit plugin, register route plugins, health checks, shutdown hook | Contain resource logic or start listening |
+| Config | `src/config.ts` | Auth settings (token lifetimes, issuer, audience); checks `JWT_SECRET` at startup | |
 | Server | `src/server.ts` | Call `buildApp()` and listen on port 3000 | |
 | Routes | `src/routes/*.ts` | Parse and validate params/query/body with Zod, choose the HTTP status | Query the database |
 | Validation helpers | `src/routes/validation.ts` | Shared UUID param schemas and the `toIssues` error formatter | |
+| Auth check | `src/routes/requireAuth.ts` | `authenticate()` reads the Bearer token and returns the user id; `sendUnauthorized()` | Say why a token was rejected |
 | Services | `src/services/*.ts` | Prisma queries, mapping database rows to response objects (DTOs) | Know about HTTP status codes |
 | Database | `src/db/prisma.ts` | One `PrismaClient` with the `pg` driver adapter | |
 
@@ -187,11 +191,11 @@ The position fields allow exact restore, but what is filled depends on the viewe
 | The same PC | `http://127.0.0.1:3000` |
 | Android emulator on that PC | `http://10.0.2.2:3000` |
 
-The API listens on `127.0.0.1` only and has no authentication or HTTPS. That is fine for local development and must change before anything is deployed.
+The API listens on `127.0.0.1` only and has no HTTPS. Login exists (`/auth/*`, D15), but only `GET /me` checks it until Step 22. That is fine for local development and must change before anything is deployed.
 
-## Planned: accounts
+## Accounts
 
-Both login methods end in the same tokens, so the rest of the API never knows which one was used (D14).
+Both login methods end in the same tokens, so the rest of the API never knows which one was used (D14). Email + password is built (Step 21, `src/routes/auth.ts`, `src/services/auth.ts`); Google comes in Step 23. Endpoints: [API.md](API.md#auth). Security rules: D15.
 
 ```
 Email + password ──► POST /auth/login ───┐

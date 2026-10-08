@@ -17,7 +17,7 @@ All examples below are real responses from the running API.
 | Empty optional fields | Left out of responses, never `null`. |
 | Unknown fields in a body | Rejected with `400` (catches typos like `scrollOffset` instead of `scrollOffsetY`). |
 | `PUT` bodies | Replace the whole record: an optional field you leave out is **cleared**. Always send the full object. |
-| Auth | None yet. Local development only. |
+| Auth | `Authorization: Bearer <accessToken>`, see [Auth](#auth). Only `GET /me` checks it so far; the document routes are still open until Step 22. |
 
 Trying a request from PowerShell:
 
@@ -55,12 +55,90 @@ Invoke-RestMethod -Method Put -Uri "http://127.0.0.1:3000/documents/<uuid>/readi
 { "error": "Document not found" }
 ```
 
-**Framework errors** come from Fastify itself and have a different shape. You only see them for malformed requests:
+**Other errors:**
 
 | Case | Status | Body |
 |---|---|---|
-| Body is not valid JSON | `400` | `{"statusCode":400,"code":"FST_ERR_CTP_INVALID_JSON_BODY","error":"Bad Request","message":"Body is not valid JSON but content-type is set to 'application/json'"}` |
-| Route does not exist | `404` | `{"message":"Route GET:/nope not found","error":"Not Found","statusCode":404}` |
+| Body is not valid JSON | `400` | `{"error":"Body is not valid JSON but content-type is set to 'application/json'"}` |
+| Body larger than 1 MB | `413` | `{"error":"Request body is too large"}` |
+| Not logged in, or the token is invalid or expired | `401` | `{"error":"Unauthorized"}`, with the header `WWW-Authenticate: Bearer` |
+| Rate limit reached (auth routes) | `429` | `{"error":"Too many requests, try again later"}`, with `Retry-After: <seconds>` |
+| Unexpected server error | `500` | `{"error":"Internal server error"}`. The details are only in the server log, never in the response. |
+| Route does not exist | `404` | `{"message":"Route GET:/nope not found","error":"Not Found","statusCode":404}` (Fastify's own shape) |
+
+---
+
+## Auth
+
+Two ways to log in, both ending in the same **session**. Email + password is built; Google comes in Step 23.
+
+```json
+{
+  "user": { "id": "2b0c…", "email": "anh@example.com", "createdAt": "2026-10-08T19:12:03.511Z" },
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9…",
+  "expiresIn": 900,
+  "refreshToken": "Qm9vay1yZWFk…"
+}
+```
+
+| Token | Lifetime | Use |
+|---|---|---|
+| `accessToken` | 15 minutes (`expiresIn` seconds) | Send as `Authorization: Bearer <accessToken>` |
+| `refreshToken` | 30 days, **works once** | Trade it for a new session at `POST /auth/refresh` |
+
+**Rules for the app:**
+- Store both tokens in `expo-secure-store`, never AsyncStorage, and never log them.
+- On a `401`, refresh **once**, then retry the request **once**. If the refresh also fails, show the login screen.
+- **Never send two refreshes at the same time.** A refresh token that is used twice counts as stolen: the server then ends **every** session of that user, and they have to log in again.
+- All auth responses have `Cache-Control: no-store`.
+
+### `POST /auth/register`
+
+| Field | Type | Rules |
+|---|---|---|
+| `email` | string | A valid email, ≤ 254 chars. Trimmed and lowercased. |
+| `password` | string | 15–128 characters, any characters (spaces and emoji too) |
+
+| Status | When |
+|---|---|
+| `201` | Account created; the body is a session |
+| `400` | Invalid email, password too short or long, or unknown keys |
+| `409` | `{"error":"Email already registered"}` (any casing) |
+| `429` | More than 10 registrations per hour from one address |
+
+### `POST /auth/login`
+
+Body: `email`, `password` (1–128 characters; the length rule is only checked at registration).
+
+| Status | When |
+|---|---|
+| `200` | The body is a session |
+| `400` | Malformed body |
+| `401` | `{"error":"Invalid email or password"}`. The same answer for an unknown email, a wrong password and a Google-only account. |
+| `429` | More than 10 tries per minute from one address, or more than 5 per 15 minutes for one email |
+
+### `POST /auth/refresh`
+
+Body: `{ "refreshToken": "..." }`
+
+| Status | When |
+|---|---|
+| `200` | A new session. The old refresh token no longer works; store the new one. |
+| `401` | `{"error":"Invalid refresh token"}`: unknown, expired, logged out or already used. Show the login screen. |
+| `429` | More than 30 per minute from one address |
+
+### `POST /auth/logout`
+
+Body: `{ "refreshToken": "..." }`. Always `204`, whether or not the token was valid. Delete both tokens on the phone too.
+
+### `GET /me`
+
+Needs `Authorization: Bearer <accessToken>`.
+
+| Status | When |
+|---|---|
+| `200` | `{"id":"…","email":"…","createdAt":"…"}` |
+| `401` | `{"error":"Unauthorized"}` |
 
 ---
 
@@ -427,5 +505,6 @@ Do not rely on these; they do not exist:
 - Listing only changed documents (no "changed since" query)
 - Editing a bookmark's label (delete and recreate instead)
 - Sync conflict rules: the last `PUT` wins
-- Accounts, authentication, HTTPS
+- Google login (Step 23), email verification, "forgot password", HTTPS
+- Login checks on the document, reading-position and bookmark routes (Step 22)
 - Uploading PDF files
