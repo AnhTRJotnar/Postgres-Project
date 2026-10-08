@@ -11,21 +11,21 @@ flowchart LR
         Logic --> Repo[Repositories]
         Repo --> Store[(AsyncStorage)]
         Logic --> Files[(PDF files in app storage)]
-        Logic -. planned .-> Client[API client]
+        Logic --> Client[API client]
     end
     subgraph Server["Backend (apps/api)"]
         Routes[Routes + Zod] --> Services[Services]
         Services --> Prisma[Prisma client]
     end
     Prisma --> DB[(PostgreSQL 17)]
-    Client -. "HTTP JSON (not wired yet)" .-> Routes
+    Client -- "HTTP JSON" --> Routes
     Shared[[packages/shared types]] --- Phone
     Shared --- Server
 ```
 
-**Offline-first.** The app works entirely on the phone: PDFs and their metadata are stored locally. The backend holds a copy for future sync and must never be required for reading. API calls from the app are background work that fails quietly.
+**Online-first (D13).** The server holds the library: documents, reading positions, bookmarks and, once uploads exist, the PDF files. The app loads from the API and sends every change to it. The phone keeps a cache, so books already downloaded stay readable offline and offline changes are sent later. Every request belongs to a logged-in user (D14).
 
-**Current state:** the app does not call the API yet. The emulator can reach it (`http://10.0.2.2:3000`), but no app code sends requests. See [ROADMAP.md](ROADMAP.md).
+**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone, and its only API call registers documents (`PUT /documents/:id`) in the background from the library screen. There are no accounts yet. Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Planned: accounts](#planned-accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
 
 ## Repository layout
 
@@ -163,11 +163,37 @@ The position fields allow exact restore, but what is filled depends on the viewe
 
 The API listens on `127.0.0.1` only and has no authentication or HTTPS. That is fine for local development and must change before anything is deployed.
 
-## Planned: sync
+## Planned: accounts
 
-1. After import, and for every document on app start: `PUT /documents/:id` (safe to repeat).
-2. When reading: save the position locally first, then `PUT /documents/:id/reading-position` in the background.
-3. Bookmarks: save locally with a phone-made UUID, then `PUT /documents/:id/bookmarks/:bookmarkId` (safe to repeat); `DELETE /bookmarks/:bookmarkId` on remove (404 = already gone).
-4. Removing from library: delete the local file and record, then `DELETE /documents/:id` (404 = already gone).
+Both login methods end in the same tokens, so the rest of the API never knows which one was used (D14).
 
-Conflict rule for now: the last write wins.
+```
+Email + password ──► POST /auth/login ───┐
+                                         ├──► access + refresh tokens ──► every API call
+Google button ──► Google ID token ──►    │
+                  POST /auth/google  ────┘
+```
+
+| Table | Holds | Why |
+|---|---|---|
+| `User` | id, email (unique, lowercased), `passwordHash` (empty for Google-only users), createdAt | One person is one row, whatever the login method |
+| `AuthProvider` | userId, provider (`google`), providerUserId (unique) | Links a Google account to a user; Apple can be added later without changing `User` |
+| `RefreshToken` | userId, hash of the token, expiresAt, revokedAt | Logout and "log out all devices" revoke rows |
+| `Document` | + `userId` | Every library belongs to someone; all queries filter by it |
+
+- **Access token:** JWT, about 15 minutes, sent as `Authorization: Bearer ...`. Checked without a database lookup.
+- **Refresh token:** random, about 30 days, stored only as a hash. Each refresh replaces it.
+- **On the phone:** both tokens in `expo-secure-store`. `apiRequest` adds the access token and refreshes once on `401`.
+- **Routes:** every existing route checks the token and only touches the user's own data.
+
+## Planned: online-first data flow
+
+The repositories stay the only place screens call. What changes is the order inside them (D13):
+
+1. **Library:** load from `GET /documents`, then update the cached copy on the phone. Without a connection, show the cache.
+2. **Import:** upload the PDF to the server and register the document. The phone keeps its copy, so it reads offline right away.
+3. **Another device:** after login, the library comes from the API; a PDF is downloaded when it is opened.
+4. **Positions and bookmarks:** sent to the API (phone-made ids, safe to repeat), and also written to the cache. Saves made offline are queued and sent when the connection returns.
+5. **Removing a document:** `DELETE /documents/:id` (404 = already gone), then remove the local file and record.
+
+Conflict rule for now: the server's copy wins, and a queued offline save must not overwrite a newer one. The exact rule is settled when the offline queue is built.

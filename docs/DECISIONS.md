@@ -7,7 +7,7 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 ---
 
 ## D1. Local-first MVP; the backend never blocks the app
-*2026-10-02*
+*2026-10-02. Replaced by D13.*
 
 **Context.** The goal is a working reader for casual users quickly. A backend dependency would make every app feature wait for server work and fail without a network.
 
@@ -101,7 +101,7 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 **Consequences.** Run `prisma generate` after cloning and after schema changes. Because the config file has a non-default name, every Prisma command needs `--config prisma7.config.ts`.
 
 ## D11. No authentication yet; local only
-*2026-10-06*
+*2026-10-06. Replaced by D14 once accounts are built.*
 
 **Context.** The MVP has no accounts, and the API only serves a developer's own emulator.
 
@@ -117,3 +117,34 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 **Decision.** Same rule as D4: the app makes the id, and the API saves it with `PUT /documents/:id/bookmarks/:bookmarkId` (201 created, 200 replaced). `POST /documents/:id/bookmarks` is removed. A bookmark never moves between documents (409).
 
 **Consequences.** Every bookmark write is safe to retry. Deleting by the phone's id works on the server too.
+
+## D13. Online-first: the server holds the library, the phone keeps a cache
+*2026-10-08. Replaces D1.*
+
+**Context.** D1 was written from the original brief. The team wants one library across devices, accounts, and server features (AI, reflow) that need the PDF on the server. That only works if the server is the source of truth. A strictly online app was rejected because people read without signal (planes, subway, abroad).
+
+**Decision.** The server is the source of truth for documents, positions and bookmarks. The app loads the library from the API and sends every change to it. Books already downloaded to the phone stay readable offline, and changes made offline are sent when the connection returns. PDF files are uploaded to the server so the library appears on other devices.
+
+**Consequences.**
+- New work: accounts and auth (D14), PDF upload and download with file storage, and later hosting with HTTPS.
+- The repositories stay the only place screens call. Inside, the order changes from "save locally, then send" to "API first, then cache".
+- Phone-made ids (D4, D12) and safe-to-repeat `PUT`s still matter: requests on a bad connection get retried.
+- Sync conflicts mostly go away because the server decides, but saves made offline still need a rule for stale writes.
+
+## D14. Two login methods, one set of tokens
+*2026-10-08. Replaces D11 once accounts are built.*
+
+**Context.** Online-first needs accounts: a library only exists for a user. The team wants both email + password and Google sign-in.
+
+**Decision.** Both methods are ways to prove who you are, and both end in **our** tokens. The rest of the API only checks those tokens and never knows which method was used.
+- **Tables:** `User` (email unique and lowercased, `passwordHash` empty for Google-only users), `AuthProvider` (links a Google account to a user by Google's user id), `RefreshToken` (stored as a hash, with expiry and revocation). `Document` gets a `userId`, and every query filters by it.
+- **Tokens:** a JWT access token valid for about 15 minutes, sent as `Authorization: Bearer ...`. A random refresh token valid for about 30 days, replaced on every refresh. On the phone both live in `expo-secure-store`, never AsyncStorage.
+- **Email + password:** argon2id (`@node-rs/argon2`), at least 8 characters, no composition rules. Failed logins always say "Invalid email or password". `/auth/login` and `/auth/register` are rate limited.
+- **Google:** the app gets an ID token from native Google sign-in and sends it to `POST /auth/google`. The server checks it with `google-auth-library` (`verifyIdToken`). If the email already has a password account and Google marks it verified, the Google login is linked to that user instead of creating a duplicate.
+
+**Consequences.**
+- `JWT_SECRET` and `GOOGLE_WEB_CLIENT_ID` are new secrets in `apps/api/.env`. Tokens are never logged.
+- Google needs setup outside the code: a Google Cloud project, an OAuth consent screen, a Web client id (for the server check) and an Android client id (with the SHA-1 of the EAS signing key). The native Google package needs a new EAS build.
+- Email verification and "forgot password" need an email service and come later.
+- An iPhone app that offers Google sign-in must also offer Sign in with Apple. `AuthProvider` takes that as one more provider.
+- Documents created before accounts have no owner and must be removed or assigned when `userId` is added.
