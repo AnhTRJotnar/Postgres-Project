@@ -148,3 +148,22 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 - Email verification and "forgot password" need an email service and come later.
 - An iPhone app that offers Google sign-in must also offer Sign in with Apple. `AuthProvider` takes that as one more provider.
 - Documents created before accounts have no owner and must be removed or assigned when `userId` is added.
+
+## D15. Security baseline for accounts
+*2026-10-08. Replaces the 8-character minimum in D14.*
+
+**Context.** With accounts, the server holds passwords and every user's library. The team made security the first priority. D14 said "at least 8 characters", which is outdated: NIST SP 800-63B rev. 4 requires at least 15 when a password is the only login factor.
+
+**Decision.**
+- **Passwords:** 15–128 characters, any characters, no composition rules. NFKC-normalized, then hashed with argon2id at the OWASP minimum (19 MiB, 2 passes, 1 thread), with the parameters written out in code.
+- **No account probing:** login gives one answer for an unknown email, a wrong password and a Google-only account, and takes the same time for each (an unknown email is checked against a dummy hash).
+- **Access tokens:** HS256 only, issuer and audience checked, 15 minutes. `JWT_SECRET` must be at least 43 characters, and the server refuses to start without it. There is no default secret.
+- **Refresh tokens:** 32 random bytes, stored as SHA-256, used once (revoked in the same statement that checks them). Reusing one ends every session of that user.
+- **Rate limits** on register, login (per address **and** per email), refresh and logout.
+- **Errors:** unexpected errors return a generic `500`; details go only to the server log. Passwords and tokens are never logged or echoed.
+- **Dependencies:** security libraries are pinned to exact versions that are at least two weeks old.
+
+**Consequences.**
+- The app must never send two refreshes at once, or the user gets logged out everywhere.
+- Register still reveals whether an email exists (`409`). Hiding that needs email verification.
+- Not yet done: a check against leaked passwords (NIST asks for one), Redis-backed rate limits for more than one server, deleting expired refresh tokens, HTTPS and `trustProxy` at deployment.
