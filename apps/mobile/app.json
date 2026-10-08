@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "pdfreader",
     "ios": {
       "bundleIdentifier": "com.pdfreader.mobile",
       "supportsTablet": true
@@ -28,6 +29,10 @@
         "projectId": "c4d82a26-b06e-4e57-ba16-980ad7f71364"
       }
     },
-    "owner": "mattytr1103"
+    "owner": "mattytr1103",
+    "plugins": [
+      "react-native-blob-util",
+      "@config-plugins/react-native-pdf"
+    ]
   }
 }
