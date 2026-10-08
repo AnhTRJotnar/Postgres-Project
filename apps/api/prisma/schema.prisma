@@ -76,3 +76,55 @@ model Bookmark {
   // Matches the only query: a document's bookmarks in reading order.
   @@index([documentId, pageNumber, createdAt])
 }
+
+enum AuthProviderType {
+  google
+}
+
+model User {
+  id           String  @id @default(uuid())
+  // Always stored lowercased by the API, so "Anh@x.com" and "anh@x.com" are one account.
+  email        String  @unique
+  // Empty for users who only sign in with Google.
+  passwordHash String?
+
+  authProviders AuthProvider[]
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Links an outside login (Google now, Apple later) to a user.
+model AuthProvider {
+  id             String           @id @default(uuid())
+  userId         String
+  provider       AuthProviderType
+  // The provider's id for the person (Google's "sub"), which never changes even if the email does.
+  providerUserId String
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One Google account belongs to one user.
+  @@unique([provider, providerUserId])
+  // A user links at most one account per provider. Also serves lookups by userId.
+  @@unique([userId, provider])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  // SHA-256 of the token. The token itself is never stored.
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // "Log out all devices" revokes every token of one user.
+  @@index([userId])
+}

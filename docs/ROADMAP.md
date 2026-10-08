@@ -40,9 +40,9 @@ The switch from offline-first to online-first (D13) with email + password and Go
 
 | # | Step | Owner | Status | Notes |
 |---|---|---|---|---|
-| 20 | Schema: `User`, `AuthProvider`, `RefreshToken`, `Document.userId` | Anh | ⬜ | The 3 test documents have no owner; decide whether to delete them in the migration |
+| 20 | Schema: `User`, `AuthProvider`, `RefreshToken` | Anh | ✅ | 2026-10-08. Nothing uses them yet. `Document.userId` moved to Step 22 so the API keeps working in between |
 | 21 | Email + password: register, login, refresh, logout, `GET /me` | Anh | ⬜ | argon2id, rate limits, tests |
-| 22 | Protect all existing routes | Anh | ⬜ | Every query filters by the logged-in user; update the tests |
+| 22 | Protect all existing routes; `Document.userId` | Anh | ⬜ | Every query filters by the logged-in user; update the tests. The migration deletes the 3 ownerless test documents (agreed 2026-10-08) |
 | 23 | Google on the server: Cloud setup, `POST /auth/google` | Anh | ⬜ | Web and Android client ids |
 | 24 | App: login and register screen, tokens in `expo-secure-store`, `apiRequest` adds the token and refreshes on `401` | Anh | ⬜ | |
 | 24b | App: native Google sign-in package, `app.json`, new EAS build | Khanh | ⬜ | Needs the Android client id from Step 23 |
