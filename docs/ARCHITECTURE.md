@@ -142,9 +142,35 @@ erDiagram
         datetime createdAt
         datetime updatedAt
     }
+    User ||--o{ AuthProvider : "logs in with"
+    User ||--o{ RefreshToken : "has"
+    User {
+        uuid id PK
+        string email "unique, lowercased by the API"
+        string passwordHash "empty for Google-only users"
+        datetime createdAt
+        datetime updatedAt
+    }
+    AuthProvider {
+        uuid id PK
+        uuid userId FK
+        enum provider "google"
+        string providerUserId "Google's sub"
+        datetime createdAt
+    }
+    RefreshToken {
+        uuid id PK
+        uuid userId FK "indexed"
+        string tokenHash "SHA-256, unique"
+        datetime expiresAt
+        datetime revokedAt
+        datetime createdAt
+    }
 ```
 
-- Deleting a document cascades to its reading position and bookmarks (`ON DELETE CASCADE`).
+- Deleting a document cascades to its reading position and bookmarks (`ON DELETE CASCADE`). Deleting a user cascades to its logins and refresh tokens.
+- `AuthProvider` has two unique rules: `(provider, providerUserId)`, so one Google account belongs to one user, and `(userId, provider)`, so a user links at most one account per provider. The second also serves lookups by `userId`.
+- The account tables exist but nothing uses them yet (Step 21 adds login). Documents get their owner (`userId`) in Step 22.
 - `Document` also has `createdAt`/`updatedAt` columns that the API does not expose.
 - `localUri` and `thumbnailUri` exist only on the phone; the server has no columns for them.
 - Bookmarks have one index, `(documentId, pageNumber, createdAt)`, matching the list query's filter and sort.
@@ -176,10 +202,12 @@ Google button ──► Google ID token ──►    │
 
 | Table | Holds | Why |
 |---|---|---|
-| `User` | id, email (unique, lowercased), `passwordHash` (empty for Google-only users), createdAt | One person is one row, whatever the login method |
-| `AuthProvider` | userId, provider (`google`), providerUserId (unique) | Links a Google account to a user; Apple can be added later without changing `User` |
-| `RefreshToken` | userId, hash of the token, expiresAt, revokedAt | Logout and "log out all devices" revoke rows |
-| `Document` | + `userId` | Every library belongs to someone; all queries filter by it |
+| `User` ✅ | id, email (unique, lowercased), `passwordHash` (empty for Google-only users), createdAt | One person is one row, whatever the login method |
+| `AuthProvider` ✅ | userId, provider (`google`), providerUserId (unique) | Links a Google account to a user; Apple can be added later without changing `User` |
+| `RefreshToken` ✅ | userId, hash of the token, expiresAt, revokedAt | Logout and "log out all devices" revoke rows |
+| `Document` | + `userId` (Step 22) | Every library belongs to someone; all queries filter by it |
+
+✅ = in the database since Step 20 (see [Data model](#data-model)).
 
 - **Access token:** JWT, about 15 minutes, sent as `Authorization: Bearer ...`. Checked without a database lookup.
 - **Refresh token:** random, about 30 days, stored only as a hash. Each refresh replaces it.
