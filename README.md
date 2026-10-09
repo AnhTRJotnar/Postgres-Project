@@ -58,8 +58,8 @@ npm run dev -w apps/api
 ```
 
 Check `http://127.0.0.1:3000/health/db` returns `{"status":"ok","database":"reachable"}`.
-From the Android emulator, the API is at `http://10.0.2.2:3000`.
+The app reaches it at `http://127.0.0.1:3000` through `adb reverse` (D16), set up by `npm run run:android -w apps/mobile`.
 
 ## Run the app
 
-The app is tested on the Android Emulator. Emulator setup, installing an APK, and building with EAS (`npm run build:android` in `apps/mobile`) are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#android-emulator).
+Start the emulator and the API, then run `npm run run:android -w apps/mobile`. It forwards ports 3000 (API) and 8081 (Metro) with `adb reverse` and installs a development build. Emulator setup, installing an APK, and building with EAS (`npm run build:android` in `apps/mobile`) are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#android-emulator).

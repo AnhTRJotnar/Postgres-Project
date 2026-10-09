@@ -106,7 +106,8 @@ Working with the emulator:
 | Install an APK | `adb install -r <file>.apk` |
 | Copy a PDF in (then pick it from *Downloads*) | `adb push <file>.pdf /sdcard/Download/` (or drag the file onto the emulator) |
 | Fully stop the app | `adb shell am force-stop com.pdfreader.mobile` |
-| Reach the API from the emulator | `http://10.0.2.2:3000` (try `/health/db` in the emulator's Chrome) |
+| Run the app (development build) | `npm run run:android -w apps/mobile`. Runs `adb reverse tcp:3000 tcp:3000` and `tcp:8081 tcp:8081`, then `expo run:android` (D16) |
+| Reach the API from the emulator | `http://127.0.0.1:3000` after `adb reverse tcp:3000 tcp:3000` (try `/health/db` in the emulator's Chrome). `adb reverse` resets when the emulator restarts |
 
 ## Building the app (EAS)
 
@@ -146,8 +147,8 @@ Before merging:
 |---|---|---|
 | `npm error Missing script: "dev"` | Ran in the repo root without a workspace | `npm run dev -w apps/api` |
 | `fatal: not a git repository` | Terminal is not in the repo (often `C:\WINDOWS\system32`) | `cd E:\dev\kindle-pdf-reader` |
-| Emulator Chrome: "refused to connect" at `10.0.2.2:3000` | The API is not running | Start it and keep its terminal open |
-| Emulator: `localhost:3000` refused, but the API runs | On the emulator, `localhost` is the emulator itself | Use `http://10.0.2.2:3000` (or `adb reverse tcp:3000 tcp:3000`, which resets when the emulator restarts) |
+| Emulator Chrome: "refused to connect" at `127.0.0.1:3000` | The API is not running, or `adb reverse` was reset by an emulator restart | Start the API and keep its terminal open; run `adb reverse tcp:3000 tcp:3000` again |
+| App: positions and bookmarks don't reach the API (warnings in the Metro log) | No `adb reverse`: on the device, `127.0.0.1` is the device itself | `adb reverse tcp:3000 tcp:3000`, or start the app with `npm run run:android -w apps/mobile` |
 | `/health/db` returns `503` | PostgreSQL is not running | Start Docker Desktop, `docker compose up -d` |
 | `DATABASE_URL is not set` on API start | `apps/api/.env` missing | Copy it from `apps/api/.env.example` |
 | `JWT_SECRET is missing or shorter than 43 characters` on API start or in tests | No `JWT_SECRET` line in `apps/api/.env` (setting it only in the terminal is lost when the terminal closes) | Generate one (First-time setup, step 1b) and add it to `apps/api/.env` |

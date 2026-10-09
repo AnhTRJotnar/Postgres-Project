@@ -25,7 +25,7 @@ flowchart LR
 
 **Online-first (D13).** The server holds the library: documents, reading positions, bookmarks and, once uploads exist, the PDF files. The app loads from the API and sends every change to it. The phone keeps a cache, so books already downloaded stay readable offline and offline changes are sent later. Every request belongs to a logged-in user (D14).
 
-**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone, and its only API call registers documents (`PUT /documents/:id`) in the background from the library screen. There are no accounts yet. Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Accounts](#accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
+**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone first. In the background it registers documents (library screen) and sends reading positions and bookmarks (reader and bookmarks screens); failures only log a warning. The server has accounts (Step 21), but the app doesn't log in yet (Step 24). Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Accounts](#accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
 
 ## Repository layout
 
@@ -84,13 +84,17 @@ Endpoints are documented in [API.md](API.md).
 
 | Part | Location | Today |
 |---|---|---|
-| Navigation | `App.tsx`, `src/app/navigation/types.ts` | Native stack: Library → Reader / Bookmarks / Settings, typed params (`documentId`) |
+| Navigation | `App.tsx`, `src/app/navigation/types.ts` | Native stack: Library → Reader / Bookmarks / Settings, typed params (`documentId`; the Reader also takes `pageNumber` and `reloadKey` to open a bookmark) |
 | Library | `src/features/library/screens/LibraryScreen.tsx` | Lists documents, Import button |
 | Import | `src/features/import/services/importPdf.ts` | System picker (PDF only) → copy to `Paths.document/pdfs/<id>.pdf` → MD5 hash → reject duplicates → save record |
 | Local storage | `src/database/repositories/documentRepository.ts` | The library as one JSON array in AsyncStorage (key `documents`) |
-| Reader, Bookmarks, Settings | `src/features/*/screens/` | Placeholders |
+| Reader | `src/features/reader/screens/ReaderScreen.tsx` | `react-native-pdf` viewer. Opens at a bookmark's page, else the local position, else the API's. Saves the position on every page change (phone, then API). "Bookmark" button for the current page |
+| Bookmarks | `src/features/bookmarks/screens/BookmarkScreen.tsx` | Lists the phone's bookmarks (or the API's if the phone has none), opens one in the reader, deletes on both sides |
+| Positions and bookmarks on the phone | `src/database/repositories/readingPositionRepository.ts`, `bookmarkRepository.ts` | AsyncStorage, phone-made UUIDs. `addBookmark` refuses a second bookmark on the same page and mode |
+| API client | `src/shared/api/client.ts`, `documentsApi.ts`, `readingPositionsApi.ts`, `bookmarksApi.ts` | `apiRequest` with `ApiError` (has the HTTP status). No login tokens yet (Step 24) |
+| Settings | `src/features/settings/screens/` | Placeholder |
 
-Screens never touch storage directly; they go through repositories and feature services. The PDF viewer will be `react-native-pdf` (7.0.1+), which requires a development/EAS build (not Expo Go).
+Screens never touch AsyncStorage directly; they go through the repositories. **Exception for now:** the reader and bookmarks screens call `src/shared/api/` themselves after saving locally. That moves into the repositories when the app becomes API-first (Step 24). The viewer is `react-native-pdf` 7.0.5, which needs a development build (not Expo Go).
 
 ## Shared contract (`packages/shared`)
 
@@ -189,7 +193,7 @@ The position fields allow exact restore, but what is filled depends on the viewe
 | From | API address |
 |---|---|
 | The same PC | `http://127.0.0.1:3000` |
-| Android emulator on that PC | `http://10.0.2.2:3000` |
+| Android emulator or USB phone | `http://127.0.0.1:3000`, forwarded to the PC by `adb reverse tcp:3000 tcp:3000` (D16) |
 
 The API listens on `127.0.0.1` only and has no HTTPS. Login exists (`/auth/*`, D15), but only `GET /me` checks it until Step 22. That is fine for local development and must change before anything is deployed.
 

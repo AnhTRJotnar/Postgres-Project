@@ -16,7 +16,7 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 **Consequences.** App API calls must be background work that fails quietly. The server copy is not the source of truth for reading.
 
 ## D2. Android first, tested on the emulator
-*2026-10-06, updated 2026-10-07*
+*2026-10-06, updated 2026-10-07. The API address is replaced by D16.*
 
 **Context.** The original plan was iPhone-first. Both developers use Windows, where iOS builds need a Mac. Neither has an Android phone.
 
@@ -167,3 +167,14 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 - The app must never send two refreshes at once, or the user gets logged out everywhere.
 - Register still reveals whether an email exists (`409`). Hiding that needs email verification.
 - Not yet done: a check against leaked passwords (NIST asks for one), Redis-backed rate limits for more than one server, deleting expired refresh tokens, HTTPS and `trustProxy` at deployment.
+
+## D16. The app reaches the API at `127.0.0.1` through `adb reverse`
+*2026-10-09. Replaces the API address in D2.*
+
+**Context.** D2 used `10.0.2.2`, the emulator's fixed address for the PC. Khanh tests on Linux with `adb reverse`, which forwards a port on the device to the same port on the PC. That works for the emulator **and** a USB-connected phone, while `10.0.2.2` only works on the emulator.
+
+**Decision.** The app calls `http://127.0.0.1:3000` (`apps/mobile/src/shared/api/client.ts`). Start the app with `npm run run:android -w apps/mobile`, which runs `adb reverse tcp:3000 tcp:3000` and `adb reverse tcp:8081 tcp:8081` (Metro) before `expo run:android`.
+
+**Consequences.**
+- `adb reverse` resets when the emulator or phone restarts or reconnects. Without it, every API call fails quietly; run the script again (or the two `adb reverse` commands).
+- An APK installed without `adb` attached (for example an EAS build shared with a tester) can't reach the API. Real testers need a deployed API with HTTPS and a configurable address, such as an `EXPO_PUBLIC_API_URL` setting.

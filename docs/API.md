@@ -10,7 +10,7 @@ All examples below are real responses from the running API.
 | | |
 |---|---|
 | Base URL (same PC) | `http://127.0.0.1:3000` |
-| Base URL (Android emulator) | `http://10.0.2.2:3000` (the emulator's address for the PC it runs on) |
+| Base URL (Android emulator or USB phone) | `http://127.0.0.1:3000`, after `adb reverse tcp:3000 tcp:3000` (D16) |
 | Format | JSON in, JSON out. Send `Content-Type: application/json` with every body. |
 | Ids | UUID v4, created **on the phone** (`Crypto.randomUUID()`). The server keeps the phone's id. |
 | Dates | ISO 8601 strings in UTC, e.g. `2026-10-06T10:00:00.000Z` (what `new Date().toISOString()` returns). |

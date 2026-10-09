@@ -12,8 +12,8 @@ Legend: ✅ done · 🔨 in progress / partly done · ⬜ not started
 |---|---|---|
 | Import a PDF, see it in the library | ✅ | Verified on the emulator with the `alpha` APK (2026-10-07) |
 | Library survives closing and reopening the app | ✅ | Same test |
-| Open it in a reader | ⬜ | Reader is a placeholder |
-| Continue from the same place | ⬜ | Needs the viewer and local position saving |
+| Open it in a reader | ✅ | `react-native-pdf` (Khanh, 2026-10-08) |
+| Continue from the same place | ✅ | Same page after reopening (Khanh's test, 2026-10-09). Page-level, see Step 8 |
 
 ## MVP steps
 
@@ -25,13 +25,13 @@ Legend: ✅ done · 🔨 in progress / partly done · ⬜ not started
 | 4 | Reader placeholder | Khanh | ✅ | |
 | 5 | Real PDF viewer | Khanh | ✅ | `react-native-pdf` 7.0.5 with a development build (`eas.json` profile `development`), 2026-10-08 |
 | 6 | Book mode and scroll mode | Khanh | ⬜ | `enablePaging` + `horizontal` for book mode |
-| 7 | Save reading position locally | Anh + Khanh | 🔨 | Anh: `readingPositionRepository` ✅; Khanh: reader calls it with page, progress, mode, zoom |
-| 8 | Restore reading position | Khanh | ⬜ | Exact page; scroll mode lands at the top of the page |
-| 9 | Position bookmarks | Anh + Khanh | 🔨 | Anh: `bookmarkRepository` ✅, Bookmarks screen; Khanh: "add bookmark" in the reader. API ready |
+| 7 | Save reading position locally | Anh + Khanh | ✅ | Saved on every page change, then sent to the API (2026-10-09). Mode is always `book` and zoom isn't saved yet |
+| 8 | Restore reading position | Khanh | ✅ | Local position first, else the API's. Exact page; scroll mode lands at the top of the page |
+| 9 | Position bookmarks | Anh + Khanh | ✅ | Anh: `bookmarkRepository`. Khanh: "Bookmark" button in the reader, Bookmarks screen (list, open at the page, delete), sent to the API (2026-10-09) |
 | 10 | Dark mode | Khanh | ⬜ | `app.json` still has `userInterfaceStyle: "light"` |
 | 11 | Backend PostgreSQL setup | Anh | ✅ | PostgreSQL 17 in Docker, Prisma 7 |
 | 12 | API endpoints | Anh | ✅ | 11 endpoints, see [API.md](API.md). Bookmarks saved with `PUT` under the phone's id |
-| 13 | Sync | Anh | 🔨 | App registers documents. Replaced by the online-first plan below (D13) |
+| 13 | Sync | Anh | 🔨 | App sends documents, positions and bookmarks in the background. Replaced by the online-first plan below (D13) |
 | 14 | AI features | | ⬜ | After the MVP |
 
 ## Online-first and accounts
@@ -70,17 +70,19 @@ The switch from offline-first to online-first (D13) with email + password and Go
 ## Next
 
 **Khanh (reading experience)**
-1. Merge `main` into `khanh`. `src/shared/api/` belongs to Anh now.
-2. Book and scroll modes in the reader.
-3. Save and restore the position through `readingPositionRepository`; "add bookmark" through `bookmarkRepository.addBookmark`.
+1. Book and scroll modes in the reader, and save the real `readingMode` (positions and bookmarks are always `book` now).
+2. Send the position to the API at most about once a second (now every page change sends a `PUT`), and save `zoomScale`.
+3. Store `pageCount` from `onLoadComplete` on the document.
 4. Allow cleartext HTTP for development builds (`expo-build-properties`).
-5. Store `pageCount` from `onLoadComplete` on the document.
+5. Remove or generalize the `build:local` script (it has a Linux home path and fish-shell commands).
 6. Fix the `alpha` release notes and move the tag to the `main` commit with the EAS config.
 7. Dark mode.
 
+Branch rules (see [WORKFLOW.md](WORKFLOW.md)): update `khanh` with `git merge main`, not rebase, and merge into `main` only after the step is checked.
+
 **Anh (app data, sync, backend)**
 1. Steps 21b–25 above; next is Step 22 (login checks on every route).
-2. Bookmarks screen and Settings screen.
+2. Settings screen. (Khanh built the Bookmarks screen; its sync issues are fixed in Step 24.)
 3. API: use the shared types for responses and derive input types from the Zod schemas.
 
 ## Known gaps
@@ -95,7 +97,9 @@ The switch from offline-first to online-first (D13) with email + password and Go
 - Scroll-mode restore is page-level with `react-native-pdf`.
 - No way to edit a bookmark label (delete and recreate).
 - No sync conflict handling beyond "last write wins".
-- The app still works offline-first; it only registers documents with the API.
+- The app still works offline-first: it saves on the phone, then sends documents, positions and bookmarks in the background. The reader and bookmarks screens call the API directly instead of through the repositories (moves in Step 24).
+- The Bookmarks screen re-sends every bookmark to the API each time it opens. A bookmark whose API delete failed (for example offline) can reappear once the phone has no bookmarks left for that book, because the screen then shows the server's list.
+- The app reaches the API only through `adb reverse` (D16). An APK installed without `adb` can't reach it.
 - No email verification or "forgot password" planned for the first version of accounts.
 
 ## After the MVP
