@@ -5,9 +5,10 @@ export type ReadingPositionInput = Omit<ReadingPosition, "id" | "documentId" | "
 
 export async function getReadingPosition(documentId: string): Promise<ReadingPosition | null> {
     try {
-        return apiRequest<ReadingPosition>(
+        // "await" is needed: without it the 404 rejects after the try block and is never caught.
+        return await apiRequest<ReadingPosition>(
             `/documents/${documentId}/reading-position`
-        );        
+        );
     }
     catch (error) {
         if (error instanceof ApiError && error.status === 404) {
