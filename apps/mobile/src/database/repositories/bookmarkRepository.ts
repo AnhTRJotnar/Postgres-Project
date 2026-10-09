@@ -33,6 +33,18 @@ export async function addBookmark(documentId: string, input: BookmarkInput): Pro
   // The API rejects empty or whitespace-only labels, so store "no label" instead.
   const label = input.label?.trim() || undefined;
 
+  const bookmarks = await readAll(documentId);
+
+  const alreadyExists = bookmarks.some(
+    (bookmark) =>
+      bookmark.pageNumber === input.pageNumber &&
+      bookmark.readingMode === input.readingMode
+  );
+
+  if (alreadyExists) {
+    throw new Error("This page is already bookmarked.");
+  }
+
   const bookmark: Bookmark = {
     ...input,
     label,
@@ -42,7 +54,6 @@ export async function addBookmark(documentId: string, input: BookmarkInput): Pro
     updatedAt: now,
   };
 
-  const bookmarks = await readAll(documentId);
   await writeAll(documentId, [...bookmarks, bookmark]);
   return bookmark;
 }
