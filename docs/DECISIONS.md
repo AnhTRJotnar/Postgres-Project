@@ -166,7 +166,7 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 **Consequences.**
 - The app must never send two refreshes at once, or the user gets logged out everywhere.
 - Register still reveals whether an email exists (`409`). Hiding that needs email verification.
-- Not yet done: a check against leaked passwords (NIST asks for one), Redis-backed rate limits for more than one server, deleting expired refresh tokens, HTTPS and `trustProxy` at deployment.
+- Not yet done: a check against leaked passwords (NIST asks for one; done in D18), Redis-backed rate limits for more than one server, deleting expired refresh tokens, HTTPS and `trustProxy` at deployment.
 
 ## D16. The app reaches the API at `127.0.0.1` through `adb reverse`
 *2026-10-09. Replaces the API address in D2.*
@@ -195,3 +195,19 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 - The app gets `401` on every data call until it logs in (Step 24). Its local copy keeps working.
 - New routes with user data must be registered inside the protected group; the route test enforces it.
 - An access token stays valid up to 15 minutes after its user is deleted. Writes then fail on the foreign key (generic `500`). Revisit if accounts can be deleted.
+
+## D18. Refuse breached passwords at registration, without sharing them
+*2026-10-10. Closes the leaked-password gap in D15.*
+
+**Context.** NIST SP 800-63B requires checking new passwords against lists of known breached passwords. The obvious way, sending the password to a lookup service, would leak it.
+
+**Decision.**
+- At registration, the API checks the password with Have I Been Pwned's free Pwned Passwords **range** API (`src/services/breachedPasswords.ts`). Only the first 5 characters of the password's SHA-1 are sent; HIBP returns every breached hash with that prefix, and the comparison happens on our server (k-anonymity). `Add-Padding: true` hides the prefix from the response size.
+- A breached password gets `400` with an issue on `password`. Login never runs the check, so existing accounts keep working.
+- **Fail open:** if HIBP doesn't answer within 3 seconds or answers with an error, registration goes ahead and the server logs a warning. An outside outage must not block every sign-up; the 15-character minimum, argon2 and rate limits still apply.
+- The check is passed into `buildApp()`, so tests use a stub and never call HIBP.
+
+**Consequences.**
+- Registration depends on an outside service for this extra check; the server needs outbound HTTPS to `api.pwnedpasswords.com`.
+- A password set while HIBP was unreachable isn't re-checked later.
+- Add the same check when a "change password" feature is built.

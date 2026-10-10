@@ -6,9 +6,11 @@ import { documentsRoutes } from "./routes/documents.js";
 import { requireUser } from "./routes/requireAuth.js";
 import { readingPositionRoutes } from "./routes/readingPositions.js";
 import { bookmarkRoutes } from "./routes/bookmarks.js";
+import { type BreachedPasswordCheck, isPasswordBreached } from "./services/breachedPasswords.js";
 
 // Builds the app without starting it, so tests can send requests with app.inject().
-export function buildApp(options: { logger?: boolean } = {}) {
+// Tests pass their own checkBreachedPassword so they don't depend on Have I Been Pwned.
+export function buildApp(options: { logger?: boolean; checkBreachedPassword?: BreachedPasswordCheck } = {}) {
   const app = Fastify({
     logger: options.logger ?? true,
   });
@@ -52,7 +54,7 @@ export function buildApp(options: { logger?: boolean } = {}) {
     }
   });
 
-  app.register(authRoutes);
+  app.register(authRoutes, { checkBreachedPassword: options.checkBreachedPassword ?? isPasswordBreached });
 
   // Everything with user data needs a valid access token. The hook covers every route
   // registered inside this block, so a new route can't be left open by forgetting a check.

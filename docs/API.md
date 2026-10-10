@@ -97,12 +97,12 @@ Two ways to log in, both ending in the same **session**. Email + password is bui
 | Field | Type | Rules |
 |---|---|---|
 | `email` | string | A valid email, ≤ 254 chars. Trimmed and lowercased. |
-| `password` | string | 15–128 characters, any characters (spaces and emoji too) |
+| `password` | string | 15–128 characters, any characters (spaces and emoji too). Must not appear in a known data breach (checked with Have I Been Pwned without sending the password, D18) |
 
 | Status | When |
 |---|---|
 | `201` | Account created; the body is a session |
-| `400` | Invalid email, password too short or long, or unknown keys |
+| `400` | Invalid email, password too short or long, unknown keys, or a breached password: `{"path":"password","message":"This password has appeared in a data breach. Choose a different one."}` |
 | `409` | `{"error":"Email already registered"}` (any casing) |
 | `429` | More than 10 registrations per hour from one address |
 

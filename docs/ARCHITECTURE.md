@@ -201,7 +201,7 @@ The API listens on `127.0.0.1` only and has no HTTPS. Login exists (`/auth/*`, D
 
 ## Accounts
 
-Both login methods end in the same tokens, so the rest of the API never knows which one was used (D14). Email + password is built (Step 21, `src/routes/auth.ts`, `src/services/auth.ts`); Google comes in Step 23. Endpoints: [API.md](API.md#auth). Security rules: D15.
+Both login methods end in the same tokens, so the rest of the API never knows which one was used (D14). Email + password is built (Step 21, `src/routes/auth.ts`, `src/services/auth.ts`), and registration refuses breached passwords (`src/services/breachedPasswords.ts`, D18); Google comes in Step 23. Endpoints: [API.md](API.md#auth). Security rules: D15.
 
 ```
 Email + password ──► POST /auth/login ───┐

@@ -14,9 +14,18 @@ import { prisma } from "./db/prisma.js";
 let app: FastifyInstance;
 const createdEmails: string[] = [];
 const password = "correct horse battery staple";
+// The stub below stands in for Have I Been Pwned: only these two passwords behave specially.
+const breachedPassword = "password123456789";
+const checkDownPassword = "the breach check service is down";
 
 before(async () => {
-    app = buildApp({ logger: false });
+    app = buildApp({
+        logger: false,
+        checkBreachedPassword: async (candidate) => {
+            if (candidate === checkDownPassword) throw new Error("Pwned Passwords unreachable");
+            return candidate === breachedPassword;
+        },
+    });
     // Test-only route to check that unexpected errors don't leak details.
     app.get("/test/crash", async () => {
         throw new Error("secret internal detail");
@@ -260,5 +269,33 @@ describe("errors", () => {
             remoteAddress: randomIp(),
         });
         assert.equal(res.statusCode, 400);
+    });
+});
+
+describe("breached passwords", () => {
+    test("register refuses a password known from a breach, and creates no account", async () => {
+        const email = newEmail();
+        const res = await post("/auth/register", { email, password: breachedPassword });
+
+        assert.equal(res.statusCode, 400);
+        assert.deepEqual(res.json().issues, [
+            { path: "password", message: "This password has appeared in a data breach. Choose a different one." },
+        ]);
+        assert.ok(!res.body.includes(breachedPassword));
+        assert.equal(await prisma.user.count({ where: { email } }), 0);
+    });
+
+    test("register still works when the breach check is unavailable", async () => {
+        const res = await post("/auth/register", { email: newEmail(), password: checkDownPassword });
+        assert.equal(res.statusCode, 201);
+    });
+
+    test("login doesn't run the check, so existing accounts keep working", async () => {
+        // The stub would throw for this password if login called it.
+        const email = newEmail();
+        await post("/auth/register", { email, password: checkDownPassword });
+
+        const res = await post("/auth/login", { email, password: checkDownPassword });
+        assert.equal(res.statusCode, 200);
     });
 });

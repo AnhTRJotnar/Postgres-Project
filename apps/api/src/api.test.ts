@@ -47,7 +47,8 @@ function listRoutes(tree: string): { method: string; url: string }[] {
 }
 
 before(async () => {
-    app = buildApp({ logger: false });
+    // No calls to Have I Been Pwned from tests: every password counts as not breached.
+    app = buildApp({ logger: false, checkBreachedPassword: async () => false });
     await app.ready();
     routes = listRoutes(app.printRoutes({ commonPrefix: false }));
     ownerToken = await registerUser();

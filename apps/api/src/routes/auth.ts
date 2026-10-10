@@ -7,6 +7,7 @@ import {
     registerUser,
     revokeRefreshToken,
 } from "../services/auth.js";
+import type { BreachedPasswordCheck } from "../services/breachedPasswords.js";
 import { authenticate, sendUnauthorized } from "./requireAuth.js";
 import { toIssues } from "./validation.js";
 
@@ -38,7 +39,11 @@ function loginEmailKey(request: FastifyRequest): string {
     return parsed.success ? `email:${parsed.data.email.trim().toLowerCase()}` : `ip:${request.ip}`;
 }
 
-export const authRoutes: FastifyPluginAsync = async (app) => {
+// The breached-password check is passed in, so tests can replace the call to Have I Been Pwned.
+export const authRoutes: FastifyPluginAsync<{ checkBreachedPassword: BreachedPasswordCheck }> = async (
+    app,
+    { checkBreachedPassword },
+) => {
     // Tokens must never be stored by a browser or proxy cache.
     app.addHook("onSend", async (_request, reply) => {
         reply.header("Cache-Control", "no-store");
@@ -76,6 +81,22 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         const body = registerBodySchema.safeParse(request.body);
         if (!body.success) {
             return reply.status(400).send({ error: "Invalid registration", issues: toIssues(body.error) });
+        }
+
+        // NIST SP 800-63B: refuse passwords known from data breaches.
+        // If the check service is down, registration goes ahead (logged): an outside outage
+        // shouldn't block every sign-up, and the length rule, argon2 and rate limits still apply.
+        let breached = false;
+        try {
+            breached = await checkBreachedPassword(body.data.password);
+        } catch (error) {
+            request.log.warn({ err: error }, "Breached-password check unavailable; registration allowed");
+        }
+        if (breached) {
+            return reply.status(400).send({
+                error: "Invalid registration",
+                issues: [{ path: "password", message: "This password has appeared in a data breach. Choose a different one." }],
+            });
         }
 
         const session = await registerUser(body.data.email, body.data.password);
