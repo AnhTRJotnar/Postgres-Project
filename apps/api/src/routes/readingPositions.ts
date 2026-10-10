@@ -24,7 +24,7 @@ export const readingPositionRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid document ID", issues: toIssues(params.error) });
         }
 
-        if (!(await getDocumentById(params.data.id))) {
+        if (!(await getDocumentById(params.data.id, request.userId))) {
             return reply.status(404).send({ error: "Document not found" });
         }
 
@@ -47,7 +47,7 @@ export const readingPositionRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid reading position", issues: toIssues(body.error) });
         }
 
-        if (!(await getDocumentById(params.data.id))) {
+        if (!(await getDocumentById(params.data.id, request.userId))) {
             return reply.status(404).send({ error: "Document not found" });
         }
 

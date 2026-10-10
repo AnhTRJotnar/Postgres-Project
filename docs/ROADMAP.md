@@ -43,7 +43,7 @@ The switch from offline-first to online-first (D13) with email + password and Go
 | 20 | Schema: `User`, `AuthProvider`, `RefreshToken` | Anh | ✅ | 2026-10-08. Nothing uses them yet. `Document.userId` moved to Step 22 so the API keeps working in between |
 | 21 | Email + password: register, login, refresh, logout, `GET /me` | Anh | ✅ | 2026-10-08. argon2id, one-use refresh tokens, rate limits, 15 tests (D15) |
 | 21b | Reject leaked passwords at registration (Have I Been Pwned range API) | Anh | ⬜ | NIST asks for it; only the first 5 characters of a SHA-1 hash leave the server |
-| 22 | Protect all existing routes; `Document.userId` | Anh | ⬜ | Every query filters by the logged-in user; update the tests. The migration deletes the 3 ownerless test documents (agreed 2026-10-08) |
+| 22 | Protect all existing routes; `Document.userId` | Anh | ✅ | 2026-10-10. One protected group, every query filtered by user, 404 for other users' data (D17). The migration deleted all pre-account documents. 37 tests |
 | 23 | Google on the server: Cloud setup, `POST /auth/google` | Anh | ⬜ | Web and Android client ids |
 | 24 | App: login and register screen, tokens in `expo-secure-store`, `apiRequest` adds the token and refreshes on `401` | Anh | ⬜ | |
 | 24b | App: native Google sign-in package, `app.json`, new EAS build | Khanh | ⬜ | Needs the Android client id from Step 23 |
@@ -59,7 +59,8 @@ The switch from offline-first to online-first (D13) with email + password and Go
 - UUID validation on all ids, strict request bodies, one error format
 - npm workspaces with the shared contract in `packages/shared`
 - `.env.example` files, setup guide, API reference
-- Automated API tests: 32 tests, `npm test -w apps/api`
+- Automated API tests: 37 tests, `npm test -w apps/api`
+- Every data route requires login and only sees the user's own data (D17)
 - Accounts: register, login, refresh, logout, `GET /me` (D15). Generic `500` errors without internal details
 
 ## Done: app data (Anh)
@@ -81,14 +82,15 @@ The switch from offline-first to online-first (D13) with email + password and Go
 Branch rules (see [WORKFLOW.md](WORKFLOW.md)): update `khanh` with `git merge main`, not rebase, and merge into `main` only after the step is checked.
 
 **Anh (app data, sync, backend)**
-1. Steps 21b–25 above; next is Step 22 (login checks on every route).
+1. Steps 21b and 23–25 above. Step 24 (the app logs in) is what makes sync work again.
 2. Settings screen. (Khanh built the Bookmarks screen; its sync issues are fixed in Step 24.)
 3. API: use the shared types for responses and derive input types from the Zod schemas.
 
 ## Known gaps
 
 - No automated tests for the app.
-- Document, position and bookmark routes don't check login yet (Step 22). No HTTPS; the API listens on `127.0.0.1` only.
+- **The app's API calls all get `401` until it logs in (Step 24)**: documents, positions and bookmarks only update on the phone for now.
+- No HTTPS; the API listens on `127.0.0.1` only.
 - Register reveals whether an email has an account (`409`); hiding it needs email verification.
 - No check against leaked passwords yet (Step 21b).
 - Rate limits are in memory: they reset on restart, remember 5,000 keys per limit and only work with one server. Move to Redis at deployment, and set `trustProxy` behind a proxy.

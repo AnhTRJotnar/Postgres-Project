@@ -33,7 +33,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
             });
         }
         const { page, pageSize } = parsed.data;
-        return listDocuments(page, pageSize);
+        return listDocuments(request.userId, page, pageSize);
     });
     
 //View document by ID
@@ -48,7 +48,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
                 })) 
             });
         }
-        const document = await getDocumentById(parsed.data.id);
+        const document = await getDocumentById(parsed.data.id, request.userId);
         if (!document) {
             return reply.status(404).send({ error: "Document not found" });
         }
@@ -68,8 +68,13 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid document", issues: toIssues(body.error) });
         }
 
-        const { document, created } = await saveDocument(params.data.id, body.data);
-        return reply.status(created ? 201 : 200).send(document);
+        const saved = await saveDocument(params.data.id, request.userId, body.data);
+        if (!saved) {
+            // Phone-made UUIDs don't collide by accident; this id belongs to another user's document.
+            return reply.status(409).send({ error: "Document id already in use" });
+        }
+
+        return reply.status(saved.created ? 201 : 200).send(saved.document);
     });
 
 //Delete document by ID
@@ -79,7 +84,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid document ID", issues: toIssues(params.error) });
         }
 
-        if (!(await deleteDocument(params.data.id))) {
+        if (!(await deleteDocument(params.data.id, request.userId))) {
             return reply.status(404).send({ error: "Document not found" });
         }
 

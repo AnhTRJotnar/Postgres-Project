@@ -93,8 +93,8 @@ export async function saveBookmark(
     return { bookmark: toBookmarkDTO(bookmark), created: !existing };
 }
 
-// Delete a bookmark by its ID. Returns true if the bookmark was deleted, false if it did not exist.
-export async function deleteBookmark(bookmarkId: string): Promise<boolean> {
-    const { count } = await prisma.bookmark.deleteMany({ where: { id: bookmarkId } });
+// Delete one of the user's bookmarks. Returns false if it doesn't exist or belongs to someone else.
+export async function deleteBookmark(bookmarkId: string, userId: string): Promise<boolean> {
+    const { count } = await prisma.bookmark.deleteMany({ where: { id: bookmarkId, document: { userId } } });
     return count > 0;
 }

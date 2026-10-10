@@ -14,6 +14,8 @@ enum ReadingMode {
 
 model Document {
   id               String  @id @default(uuid())
+  // The owner. Every query filters by it, so a user only ever sees their own documents.
+  userId           String
   title            String
   originalFileName String
   fileHash         String?
@@ -32,8 +34,11 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([fileHash])
-  @@index([dateAdded])
+  // Matches the library query: one user's documents, newest first.
+  @@index([userId, dateAdded])
 }
 
 model ReadingPosition {
@@ -90,6 +95,7 @@ model User {
 
   authProviders AuthProvider[]
   refreshTokens RefreshToken[]
+  documents     Document[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

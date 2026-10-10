@@ -40,23 +40,25 @@ export function toDocumentDto(doc: Document): DocumentDTO {
 }
 
 // List documents with pagination, ordered by date added (newest first) and then by ID (ascending).
-export async function listDocuments(page: number, pageSize: number): Promise<DocumentPage> {
+export async function listDocuments(userId: string, page: number, pageSize: number): Promise<DocumentPage> {
     const [rows, total] = await prisma.$transaction([
         prisma.document.findMany({
+            where: { userId },
             skip: (page - 1) * pageSize,
             take: pageSize,
             orderBy: [{ dateAdded: "desc" }, { id: "asc" }],
         }),
-        prisma.document.count(),
+        prisma.document.count({ where: { userId } }),
     ]);
     return {
         items: rows.map(toDocumentDto), page, pageSize, total,
     };
 }
 
-// Get a document by its ID. Returns null if the document does not exist.
-export async function getDocumentById(id: string): Promise<DocumentDTO | null> {
-    const doc = await prisma.document.findUnique({ where: { id } });
+// Get one of the user's documents. Returns null if it doesn't exist or belongs to someone else,
+// so callers can't tell the two apart.
+export async function getDocumentById(id: string, userId: string): Promise<DocumentDTO | null> {
+    const doc = await prisma.document.findUnique({ where: { id, userId } });
     return doc ? toDocumentDto(doc) : null;
 }
 
@@ -73,12 +75,17 @@ export interface DocumentInput {
     isFinished: boolean;
 }
 
-// Save a document by ID. If the document exists, it is updated; if not, it is created. Returns the saved document and a boolean indicating whether it was created (true) or updated (false).
+// Save one of the user's documents by ID: update it if it exists, otherwise create it.
+// Returns null if the id already belongs to another user's document, which is never touched.
 export async function saveDocument(
     id: string,
+    userId: string,
     input: DocumentInput,
-): Promise<{document: DocumentDTO; created: boolean}> {
-    const existingDoc = await prisma.document.findUnique({ where: {id}, select: { id: true } });
+): Promise<{document: DocumentDTO; created: boolean} | null> {
+    const existingDoc = await prisma.document.findUnique({ where: {id}, select: { userId: true } });
+    if (existingDoc && existingDoc.userId !== userId) {
+        return null;
+    }
 
     // PUT replaces the document: omitted optional fields are cleared.
     // dateAdded comes from the phone (when the PDF was imported), not from the server clock.
@@ -95,16 +102,17 @@ export async function saveDocument(
     };
 
     const document = await prisma.document.upsert({
-        where: { id },
-        create: { id, ...data },
+        // userId here too, so another user's row can never be the one that gets updated.
+        where: { id, userId },
+        create: { id, userId, ...data },
         update: data,
     });
 
     return { document: toDocumentDto(document), created: !existingDoc };
 }
 
-// The database cascades the delete to the document's reading position and bookmarks.
-export async function deleteDocument(id: string): Promise<boolean> {
-    const { count } = await prisma.document.deleteMany({ where: { id } });
+// Delete one of the user's documents. The database cascades the delete to its reading position and bookmarks.
+export async function deleteDocument(id: string, userId: string): Promise<boolean> {
+    const { count } = await prisma.document.deleteMany({ where: { id, userId } });
     return count > 0;
 }

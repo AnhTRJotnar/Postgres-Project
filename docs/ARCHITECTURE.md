@@ -25,7 +25,7 @@ flowchart LR
 
 **Online-first (D13).** The server holds the library: documents, reading positions, bookmarks and, once uploads exist, the PDF files. The app loads from the API and sends every change to it. The phone keeps a cache, so books already downloaded stay readable offline and offline changes are sent later. Every request belongs to a logged-in user (D14).
 
-**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone first. In the background it registers documents (library screen) and sends reading positions and bookmarks (reader and bookmarks screens); failures only log a warning. The server has accounts (Step 21), but the app doesn't log in yet (Step 24). Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Accounts](#accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
+**Current state:** the code is still built the offline-first way (D1). The app saves everything on the phone first. In the background it registers documents (library screen) and sends reading positions and bookmarks (reader and bookmarks screens); failures only log a warning. The server requires login on every data route since Step 22, but the app doesn't log in yet (Step 24), so **all its API calls currently get `401`** and only the phone copy is updated. Steps 20–25 in [ROADMAP.md](ROADMAP.md) make the switch; the planned design is in [Accounts](#accounts) and [Planned: online-first data flow](#planned-online-first-data-flow).
 
 ## Repository layout
 
@@ -67,7 +67,7 @@ kindle-pdf-reader/
 | Server | `src/server.ts` | Call `buildApp()` and listen on port 3000 | |
 | Routes | `src/routes/*.ts` | Parse and validate params/query/body with Zod, choose the HTTP status | Query the database |
 | Validation helpers | `src/routes/validation.ts` | Shared UUID param schemas and the `toIssues` error formatter | |
-| Auth check | `src/routes/requireAuth.ts` | `authenticate()` reads the Bearer token and returns the user id; `sendUnauthorized()` | Say why a token was rejected |
+| Auth check | `src/routes/requireAuth.ts` | `requireUser`: the `onRequest` hook of the protected group in `app.ts`. Reads the Bearer token before the body is parsed and sets `request.userId`. `authenticate()` and `sendUnauthorized()` for `/me` | Say why a token was rejected |
 | Services | `src/services/*.ts` | Prisma queries, mapping database rows to response objects (DTOs) | Know about HTTP status codes |
 | Database | `src/db/prisma.ts` | One `PrismaClient` with the `pg` driver adapter | |
 
@@ -113,12 +113,13 @@ erDiagram
     Document ||--o{ Bookmark : "has many"
     Document {
         uuid id PK "created on the phone"
+        uuid userId FK "owner"
         string title
         string originalFileName
         string fileHash "MD5, indexed"
         int fileSize
         int pageCount
-        datetime dateAdded "indexed"
+        datetime dateAdded "indexed with userId"
         datetime lastOpenedAt
         bool isFavorite
         bool isFinished
@@ -152,6 +153,7 @@ erDiagram
     }
     User ||--o{ AuthProvider : "logs in with"
     User ||--o{ RefreshToken : "has"
+    User ||--o{ Document : "owns"
     User {
         uuid id PK
         string email "unique, lowercased by the API"
@@ -178,7 +180,7 @@ erDiagram
 
 - Deleting a document cascades to its reading position and bookmarks (`ON DELETE CASCADE`). Deleting a user cascades to its logins and refresh tokens.
 - `AuthProvider` has two unique rules: `(provider, providerUserId)`, so one Google account belongs to one user, and `(userId, provider)`, so a user links at most one account per provider. The second also serves lookups by `userId`.
-- The account tables exist but nothing uses them yet (Step 21 adds login). Documents get their owner (`userId`) in Step 22.
+- Every document has an owner (`userId`, required, Step 22). Deleting a user cascades to their documents and everything under them. Every query filters by the logged-in user; another user's rows answer `404`. The Step 22 migration deleted all documents made before accounts.
 - `Document` also has `createdAt`/`updatedAt` columns that the API does not expose.
 - `localUri` and `thumbnailUri` exist only on the phone; the server has no columns for them.
 - Bookmarks have one index, `(documentId, pageNumber, createdAt)`, matching the list query's filter and sort.
@@ -195,7 +197,7 @@ The position fields allow exact restore, but what is filled depends on the viewe
 | The same PC | `http://127.0.0.1:3000` |
 | Android emulator or USB phone | `http://127.0.0.1:3000`, forwarded to the PC by `adb reverse tcp:3000 tcp:3000` (D16) |
 
-The API listens on `127.0.0.1` only and has no HTTPS. Login exists (`/auth/*`, D15), but only `GET /me` checks it until Step 22. That is fine for local development and must change before anything is deployed.
+The API listens on `127.0.0.1` only and has no HTTPS. Login exists (`/auth/*`, D15), and every document, position and bookmark route requires it (Step 22, D17). That is fine for local development and must change before anything is deployed.
 
 ## Accounts
 
@@ -213,7 +215,7 @@ Google button ──► Google ID token ──►    │
 | `User` ✅ | id, email (unique, lowercased), `passwordHash` (empty for Google-only users), createdAt | One person is one row, whatever the login method |
 | `AuthProvider` ✅ | userId, provider (`google`), providerUserId (unique) | Links a Google account to a user; Apple can be added later without changing `User` |
 | `RefreshToken` ✅ | userId, hash of the token, expiresAt, revokedAt | Logout and "log out all devices" revoke rows |
-| `Document` | + `userId` (Step 22) | Every library belongs to someone; all queries filter by it |
+| `Document` ✅ | + `userId` (Step 22) | Every library belongs to someone; all queries filter by it |
 
 ✅ = in the database since Step 20 (see [Data model](#data-model)).
 

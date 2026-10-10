@@ -3,6 +3,7 @@ import rateLimit from "@fastify/rate-limit";
 import { prisma } from "./db/prisma.js";
 import { authRoutes } from "./routes/auth.js";
 import { documentsRoutes } from "./routes/documents.js";
+import { requireUser } from "./routes/requireAuth.js";
 import { readingPositionRoutes } from "./routes/readingPositions.js";
 import { bookmarkRoutes } from "./routes/bookmarks.js";
 
@@ -52,9 +53,17 @@ export function buildApp(options: { logger?: boolean } = {}) {
   });
 
   app.register(authRoutes);
-  app.register(documentsRoutes);
-  app.register(readingPositionRoutes);
-  app.register(bookmarkRoutes);
+
+  // Everything with user data needs a valid access token. The hook covers every route
+  // registered inside this block, so a new route can't be left open by forgetting a check.
+  app.register(async (protectedApp) => {
+    protectedApp.decorateRequest("userId", "");
+    protectedApp.addHook("onRequest", requireUser);
+
+    protectedApp.register(documentsRoutes);
+    protectedApp.register(readingPositionRoutes);
+    protectedApp.register(bookmarkRoutes);
+  });
 
   return app;
 }

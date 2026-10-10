@@ -25,7 +25,7 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid document ID", issues: toIssues(params.error) });
         }
 
-        if (!(await getDocumentById(params.data.id))) {
+        if (!(await getDocumentById(params.data.id, request.userId))) {
             return reply.status(404).send({ error: "Document not found" });
         }
 
@@ -44,7 +44,7 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid bookmark", issues: toIssues(body.error) });
         }
 
-        if (!(await getDocumentById(params.data.id))) {
+        if (!(await getDocumentById(params.data.id, request.userId))) {
             return reply.status(404).send({ error: "Document not found" });
         }
 
@@ -63,7 +63,7 @@ export const bookmarkRoutes: FastifyPluginAsync = async (app) => {
             return reply.status(400).send({ error: "Invalid bookmark ID", issues: toIssues(params.error) });
         }
 
-        if (!(await deleteBookmark(params.data.bookmarkId))) {
+        if (!(await deleteBookmark(params.data.bookmarkId, request.userId))) {
             return reply.status(404).send({ error: "Bookmark not found" });
         }
 

@@ -17,7 +17,7 @@ All examples below are real responses from the running API.
 | Empty optional fields | Left out of responses, never `null`. |
 | Unknown fields in a body | Rejected with `400` (catches typos like `scrollOffset` instead of `scrollOffsetY`). |
 | `PUT` bodies | Replace the whole record: an optional field you leave out is **cleared**. Always send the full object. |
-| Auth | `Authorization: Bearer <accessToken>`, see [Auth](#auth). Only `GET /me` checks it so far; the document routes are still open until Step 22. |
+| Auth | Every route except `/health*` and `/auth/*` needs `Authorization: Bearer <accessToken>` (see [Auth](#auth)) and only sees the logged-in user's data. Another user's document, position or bookmark answers `404`, exactly like one that doesn't exist. |
 
 Trying a request from PowerShell:
 
@@ -293,6 +293,7 @@ Response (`201` the first time, `200` after that) — the saved document object:
 | `201` | Created |
 | `200` | Updated |
 | `400` | `id` is not a UUID, or the body breaks a rule above |
+| `409` | `{"error":"Document id already in use"}`: the id belongs to another user's document, which is not changed |
 
 From the app (the `LocalDocument` minus `id` and the device-only fields):
 ```ts
@@ -506,5 +507,4 @@ Do not rely on these; they do not exist:
 - Editing a bookmark's label (delete and recreate instead)
 - Sync conflict rules: the last `PUT` wins
 - Google login (Step 23), email verification, "forgot password", HTTPS
-- Login checks on the document, reading-position and bookmark routes (Step 22)
 - Uploading PDF files

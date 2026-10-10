@@ -178,3 +178,20 @@ Format: **context** (the problem) → **decision** → **consequences** (what it
 **Consequences.**
 - `adb reverse` resets when the emulator or phone restarts or reconnects. Without it, every API call fails quietly; run the script again (or the two `adb reverse` commands).
 - An APK installed without `adb` attached (for example an EAS build shared with a tester) can't reach the API. Real testers need a deployed API with HTTPS and a configurable address, such as an `EXPO_PUBLIC_API_URL` setting.
+
+## D17. Every document belongs to one user; other users' data looks like it doesn't exist
+*2026-10-10*
+
+**Context.** With accounts (D14), each library must be private. Ids are UUIDs made on the phone (D4, D12), so they are global: the database can't tell two users' documents apart by id alone.
+
+**Decision.**
+- `Document.userId` is required, with `ON DELETE CASCADE` from `User`. Positions and bookmarks belong to a user through their document.
+- All document, position and bookmark routes sit in one protected group in `app.ts`. Its `onRequest` hook checks the access token **before the body is read** and sets `request.userId`. A test reads Fastify's full route table and fails if any route other than `/health*`, `/auth/*` and `/me` answers without a token.
+- Every query filters by `request.userId`. Its default is `""`, which matches no rows, so a route that misses the check returns nothing rather than everything.
+- Another user's document, position or bookmark answers `404`, the same as one that doesn't exist. `PUT` with an id that another user already owns answers `409` and changes nothing. That reveals only that a random UUID is taken, which nobody can guess.
+- The migration deleted all documents made before accounts (development data only).
+
+**Consequences.**
+- The app gets `401` on every data call until it logs in (Step 24). Its local copy keeps working.
+- New routes with user data must be registered inside the protected group; the route test enforces it.
+- An access token stays valid up to 15 minutes after its user is deleted. Writes then fail on the foreign key (generic `500`). Revisit if accounts can be deleted.
