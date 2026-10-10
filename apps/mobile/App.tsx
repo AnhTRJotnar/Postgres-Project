@@ -8,34 +8,39 @@ import ReaderScreen from "./src/features/reader/screens/ReaderScreen";
 import BookmarkScreen from "./src/features/bookmarks/screens/BookmarkScreen";
 import SettingsScreen from "./src/features/settings/screens/SettingsScreen";
 
+import { ThemeProvider } from "./src/shared/theme/ThemeContext";
+
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator initialRouteName="Library">
-        <Stack.Screen
-          name="Library"
-          component={LibraryScreen}
-          options={{ title: "Library" }}
-        />
-        <Stack.Screen
-          name="Reader"
-          component={ReaderScreen}
-          options={{ title: "Reader" }}
-        />
-        <Stack.Screen
-          name="Bookmarks"
-          component={BookmarkScreen}
-          options={{ title: "Bookmarks" }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ title: "Settings" }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <ThemeProvider>
+      <NavigationContainer>
+        <StatusBar style="auto" />
+        <Stack.Navigator initialRouteName="Library">
+          <Stack.Screen
+            name="Library"
+            component={LibraryScreen}
+            options={{ title: "Library" }}
+          />
+          <Stack.Screen
+            name="Reader"
+            component={ReaderScreen}
+            options={{ title: "Reader" }}
+          />
+          <Stack.Screen
+            name="Bookmarks"
+            component={BookmarkScreen}
+            options={{ title: "Bookmarks" }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ title: "Settings" }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>      
+    </ThemeProvider>
   );
 }
