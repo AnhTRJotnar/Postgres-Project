@@ -10,6 +10,7 @@ Setting up, running, checking and building the project on Windows (PowerShell). 
 | Docker Desktop | current | Local PostgreSQL |
 | Git | current | |
 | Android Studio + emulator | current, emulator image API 35+ x86_64 | Running the app |
+| JDK 17 (`winget install --id Microsoft.OpenJDK.17 -e`), with `JAVA_HOME` pointing to it | 17, **not** Android Studio's bundled Java 25 | Building the app locally (`npm run run:android -w apps/mobile`). Java 24+ makes the C++ (CMake) build step fail |
 | Expo account + `eas-cli` | latest via `npx` | Building installable APKs |
 
 Set your Git identity once, so commits are linked to your GitHub account:
@@ -155,6 +156,9 @@ Before merging:
 | VS Code: `File 'expo/tsconfig.base' not found` | Editor cached the state from before `npm ci` | Ctrl+Shift+P → *TypeScript: Restart TS Server* |
 | `Access to the path ... is denied` when creating folders | No write access at the drive root | Use a folder you own, e.g. under `E:\dev` |
 | `adb` not recognized | Terminal opened before `Path` was updated | Restart VS Code |
+| Android build: `configureCMakeDebug` fails with "A restricted method in java.lang.System has been called" | Gradle runs on Java 24 or newer (for example Android Studio's bundled Java 25) | Install JDK 17, set `JAVA_HOME` to it (`[Environment]::SetEnvironmentVariable("JAVA_HOME", "<jdk-17 folder>", "User")`), restart VS Code, then `cd apps/mobile/android; .gradlew --stop` |
+| Android build stops right after creating `apps/mobile/android` | `JAVA_HOME` not set in that terminal | Set it (row above) and open a new terminal |
+| Install: `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | An APK signed with another key (for example an EAS build) is installed | `adb uninstall com.pdfreader.mobile`, then install again. This deletes the app's data on the device |
 | Prisma: config or schema not found | The config file has a non-default name | Add `--config prisma7.config.ts` |
 | `npm warn allow-scripts ... prisma ... esbuild` | npm 11 skips some install scripts | Harmless so far; everything ran correctly |
 | `warning: could not open directory 'apps/api/.claude/skills/...'` | Empty leftover folders | Delete `apps/api/.claude` |
