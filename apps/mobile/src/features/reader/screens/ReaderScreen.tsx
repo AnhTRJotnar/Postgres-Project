@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Button, StyleSheet, Text, View, } from "react-native";
+import { ActivityIndicator, Alert, Button, StyleSheet, Text, View,  useWindowDimensions, } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../../app/navigation/types";
 import type { LocalDocument } from "../../../shared/types/document";
@@ -9,6 +9,7 @@ import { getReadingPosition as getLocalReadingPosition, saveReadingPosition as s
 import { getReadingPosition as getApiReadingPosition, saveReadingPosition as saveApiReadingPosition, } from "../../../shared/api/readingPositionsApi";
 import { addBookmark as addLocalBookmark, } from "../../../database/repositories/bookmarkRepository";
 import { saveBookmark as saveApiBookmark, } from "../../../shared/api/bookmarksApi";
+import type { ReadingMode } from "@kindle-pdf-reader/shared";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Reader">;
 
@@ -19,7 +20,9 @@ export default function ReaderScreen({ navigation, route}: Props) {
     const [initialPage, setInitialPage] = useState(1);
     const [pageCount, setPageCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(initialPage);
-
+    const { width, height } = useWindowDimensions();
+    const readingMode: ReadingMode = width > height ? "book" : "scroll";
+    
     useEffect(() => {
         getAllDocuments().then(async (documents) => {
             const found = documents.find((item) => item.id === documentId);
@@ -80,7 +83,7 @@ export default function ReaderScreen({ navigation, route}: Props) {
         try {
             const bookmark = await addLocalBookmark(documentId, {
                 pageNumber: currentPage,
-                readingMode: "book",
+                readingMode,
             });
 
             saveApiBookmark(documentId, bookmark).catch((error) => {
@@ -111,10 +114,12 @@ export default function ReaderScreen({ navigation, route}: Props) {
             </View>
 
             <Pdf
-                key={`${documentId}-${initialPage}-${reloadKey ?? 0}`}
+                key={`${documentId}-${initialPage}-${readingMode}-${reloadKey ?? 0}`}
                 source={{ uri: document.localUri }}
                 page={initialPage}
                 style={styles.pdf}
+                horizontal={readingMode === "book"}
+                enablePaging={readingMode === "book"}
                 onLoadComplete={(totalPages) => {
                     setPageCount(totalPages);
                 }}
@@ -124,7 +129,7 @@ export default function ReaderScreen({ navigation, route}: Props) {
                     const position = {
                         pageNumber: page,
                         progressPercent: (page / totalPages) * 100,
-                        readingMode: "book" as const,
+                        readingMode,
                     };
 
                     saveLocalReadingPosition(documentId, position)

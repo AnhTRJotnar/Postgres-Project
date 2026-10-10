@@ -56,7 +56,7 @@ export default function LibraryScreen({ navigation }: Props) {
       <FlatList
         data={documents}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <Text style={styles.empty}>Your library is empty</Text>
         }
@@ -87,6 +87,12 @@ export default function LibraryScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   list: { padding: 16, gap: 12, flexGrow: 1 },
+  listContent: {
+    padding: 16,
+    gap: 12,
+    flexGrow: 1,
+    paddingBottom: 16,
+  },
   empty: { textAlign: "center", marginTop: 80, fontSize: 18, color: "#888" },
   card: { padding: 16, borderRadius: 12, backgroundColor: "#f2f2f2" },
   cardTitle: { fontSize: 16, fontWeight: "600" },
