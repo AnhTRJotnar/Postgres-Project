@@ -8,6 +8,7 @@ import type { Bookmark } from "@kindle-pdf-reader/shared";
 import type { RootStackParamList } from "../../../app/navigation/types";
 import { deleteBookmark as deleteLocalBookmark, listBookmarks as listLocalBookmarks, } from "../../../database/repositories/bookmarkRepository";
 import { deleteBookmark as deleteApiBookmark, listBookmarks as listApiBookmarks, saveBookmark as saveApiBookmark } from "../../../shared/api/bookmarksApi";
+import { useTheme } from "../../../shared/theme/ThemeContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Bookmarks">;
 
@@ -15,6 +16,7 @@ export default function BookmarkScreen({ navigation, route }: Props) {
   const { documentId } = route.params;
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
+  const  { colors } = useTheme();
 
   const loadBookmarks = useCallback(async () => {
     setLoading(true);
@@ -54,26 +56,30 @@ export default function BookmarkScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.text} />
       </View>
     );
   }
 
   return (
     <FlatList
+      style={{ backgroundColor: colors.background }}
       data={bookmarks}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
       ListEmptyComponent={
-        <Text style={styles.empty}>No bookmarks yet</Text>
+        <Text style={[styles.empty, { color: colors.mutedText },]}>No bookmarks yet</Text>
       }
       renderItem={({ item }) => (
-        <Pressable style={styles.bookmark} onPress={() => navigation.popTo("Reader", { documentId, pageNumber: item.pageNumber,   reloadKey: Date.now(), })}>
+        <Pressable style={[styles.bookmark, { backgroundColor: colors.surface },]} onPress={() => navigation.popTo("Reader", { documentId, pageNumber: item.pageNumber,   reloadKey: Date.now(), })}>
           <View style={styles.details}>
-            <Text style={styles.label}>
-              {item.label || `Page ${item.pageNumber}`}
-            </Text>
-            <Text>Page {item.pageNumber}</Text>
+              <Text style={[styles.label, { color: colors.text }]}>
+                {item.label || `Page ${item.pageNumber}`}
+              </Text>
+              
+              <Text style={{ color: colors.mutedText }}>
+                Page {item.pageNumber}
+              </Text>
           </View>
 
           <Button title="Delete"

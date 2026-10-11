@@ -42,7 +42,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     function setMode(nextMode: ThemeMode) {
         setModeState(nextMode);
-        void AsyncStorage.setItem
+        void AsyncStorage.setItem(THEME_KEY, nextMode);
     }
 
     function toggleMode() {

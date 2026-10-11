@@ -10,6 +10,11 @@ import { getReadingPosition as getApiReadingPosition, saveReadingPosition as sav
 import { addBookmark as addLocalBookmark, } from "../../../database/repositories/bookmarkRepository";
 import { saveBookmark as saveApiBookmark, } from "../../../shared/api/bookmarksApi";
 import type { ReadingMode } from "@kindle-pdf-reader/shared";
+import { useTheme } from "../../../shared/theme/ThemeContext";
+import {
+  getPreferredReadingMode,
+  type PreferredReadingMode,
+} from "../../../database/repositories/settingsRepository";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Reader">;
 
@@ -21,9 +26,19 @@ export default function ReaderScreen({ navigation, route}: Props) {
     const [pageCount, setPageCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(initialPage);
     const { width, height } = useWindowDimensions();
-    const readingMode: ReadingMode = width > height ? "book" : "scroll";
+ 
+    const { colors } = useTheme();
+    const [preferredMode, setPreferredMode] = useState<PreferredReadingMode>("auto");
     
+    const orientationMode: ReadingMode = width > height ? "book" : "scroll";
+    const readingMode: ReadingMode = preferredMode === "auto" ? orientationMode : preferredMode;   
+
     useEffect(() => {
+        getPreferredReadingMode()
+            .then(setPreferredMode)
+            .catch((error) => {
+            console.warn("Could not load preferred reading mode:", error);
+        });
         getAllDocuments().then(async (documents) => {
             const found = documents.find((item) => item.id === documentId);
             if (pageNumber) {
@@ -34,13 +49,14 @@ export default function ReaderScreen({ navigation, route}: Props) {
 
                 if (localPosition) {
                     setInitialPage(localPosition.pageNumber);
+                    setCurrentPage(localPosition.pageNumber);
                 } else {
                     try {
                         const apiPosition = await getApiReadingPosition(documentId);
 
                         if (apiPosition) {
                             setInitialPage(apiPosition.pageNumber);
-
+                            setCurrentPage(apiPosition.pageNumber);
                             await saveLocalReadingPosition(documentId, {
                                 pageNumber: apiPosition.pageNumber,
                                 progressPercent: apiPosition.progressPercent,
@@ -63,17 +79,17 @@ export default function ReaderScreen({ navigation, route}: Props) {
 
     if (error) {
         return (
-            <View style={styles.center}>
-                <Text>{error}</Text>
+            <View style={[styles.center, { backgroundColor: colors.background }]}>
+                <Text style={{ color: colors.text }}>{error}</Text>
             </View>
         );
     }
 
     if (!document) {
         return (
-        <View style={styles.center}>
-            <ActivityIndicator />
-        </View>
+            <View style={[styles.center, { backgroundColor: colors.background }]}>
+                <ActivityIndicator color={colors.text} />
+            </View>
         );
     }
 
@@ -97,9 +113,9 @@ export default function ReaderScreen({ navigation, route}: Props) {
     }
 
     return (
-        <View style={styles.container}>
-            <View style={styles.toolbar}>
-                <Text numberOfLines={1} style={styles.title}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={[ styles.toolbar, { backgroundColor: colors.surface },]}>
+                <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>
                     {document.title}
                 </Text>
 
@@ -114,10 +130,10 @@ export default function ReaderScreen({ navigation, route}: Props) {
             </View>
 
             <Pdf
-                key={`${documentId}-${initialPage}-${readingMode}-${reloadKey ?? 0}`}
+                key={`${documentId}-${readingMode}-${reloadKey ?? 0}`}
                 source={{ uri: document.localUri }}
                 page={initialPage}
-                style={styles.pdf}
+                style={[styles.pdf, { backgroundColor: colors.background },]}
                 horizontal={readingMode === "book"}
                 enablePaging={readingMode === "book"}
                 onLoadComplete={(totalPages) => {
