@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Button, StyleSheet, Text, View,  useWindowDimensions, } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../../app/navigation/types";
@@ -15,6 +15,7 @@ import {
   getPreferredReadingMode,
   type PreferredReadingMode,
 } from "../../../database/repositories/settingsRepository";
+import { StatusBar } from "expo-status-bar";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Reader">;
 
@@ -27,12 +28,48 @@ export default function ReaderScreen({ navigation, route}: Props) {
     const [currentPage, setCurrentPage] = useState(initialPage);
     const { width, height } = useWindowDimensions();
  
-    const { colors } = useTheme();
+    const { colors, mode } = useTheme();
     const [preferredMode, setPreferredMode] = useState<PreferredReadingMode>("auto");
     
     const orientationMode: ReadingMode = width > height ? "book" : "scroll";
     const readingMode: ReadingMode = preferredMode === "auto" ? orientationMode : preferredMode;   
 
+    const [controlsVisible, setControlsVisible] = useState(false);
+    const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const revealControls = useCallback(() => {
+    setControlsVisible(true);
+
+    if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+    }
+
+    hideTimer.current = setTimeout(() => {
+        setControlsVisible(false);
+    }, 4000);
+    }, []);
+
+    const toggleControls = useCallback(() => {
+    if (controlsVisible) {
+        setControlsVisible(false);
+
+        if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+        }
+    } else {
+        revealControls();
+    }
+    }, [controlsVisible, revealControls]);
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerShown: controlsVisible,
+        });
+
+        return () => {
+            navigation.setOptions({ headerShown: true });
+        };
+    }, [navigation, controlsVisible]);
     useEffect(() => {
         getPreferredReadingMode()
             .then(setPreferredMode)
@@ -114,6 +151,7 @@ export default function ReaderScreen({ navigation, route}: Props) {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <StatusBar hidden={!controlsVisible} style={mode === "dark" ? "light" : "dark"}/>
             <View style={[ styles.toolbar, { backgroundColor: colors.surface },]}>
                 <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>
                     {document.title}
@@ -136,6 +174,7 @@ export default function ReaderScreen({ navigation, route}: Props) {
                 style={[styles.pdf, { backgroundColor: colors.background },]}
                 horizontal={readingMode === "book"}
                 enablePaging={readingMode === "book"}
+                onPageSingleTap={toggleControls}
                 onLoadComplete={(totalPages) => {
                     setPageCount(totalPages);
                 }}
