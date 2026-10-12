@@ -1,6 +1,6 @@
 import { Pressable, View, Text, StyleSheet, Switch } from "react-native";
 import { useTheme } from "../../../shared/theme/ThemeContext";
-import { getPreferredReadingMode, savePreferredReadingMode, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
+import { getPreferredReadingMode, savePreferredReadingMode, getSinglePageEnabled, saveSinglePageEnabled, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
 import { useEffect, useState } from "react";
 
 const options: {
@@ -14,10 +14,17 @@ const options: {
 
 export default function SettingsScreen() {
   const { mode, colors, toggleMode } = useTheme();
+  const [singlePageEnabled, setSinglePageEnabled] = useState(false);
   const [readMode, setMode] = useState<PreferredReadingMode>("auto");
 
   useEffect(() => {
-    getPreferredReadingMode().then(setMode);
+    Promise.all([
+      getPreferredReadingMode(),
+      getSinglePageEnabled(),
+    ]).then(([readingMode, enabled]) => {
+      setMode(readingMode);
+      setSinglePageEnabled(enabled);
+    });
   }, []);
 
   async function handleModeChange(nextMode: PreferredReadingMode) {
@@ -25,50 +32,64 @@ export default function SettingsScreen() {
     await savePreferredReadingMode(nextMode);
   }
 
-  return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background },
-      ]}
-    >
-      <Text style={[styles.heading, { color: colors.text }]}>
-        Preferred reading mode
-      </Text>
-      <View
-        style={[
-          styles.modeGroup,
-          { backgroundColor: colors.surface },
-        ]}
-      >
-        {options.map((option) => {
-          const selected = readMode === option.value;
+  async function handleSinglePageChange(enabled: boolean) {
+    setSinglePageEnabled(enabled);
+    await saveSinglePageEnabled(enabled);
+  }
 
-          return (
-            <Pressable
-              key={option.value}
-              style={[
-                styles.option,
-                selected && styles.selectedOption,
-              ]}
-              onPress={() => handleModeChange(option.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-            >
-              <Text
-                style={[
-                  styles.optionText,
-                  {
-                    color: selected ? "#ffffff" : colors.text,
-                  },
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }, ]}>
+      <View style={[styles.row, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Single page mode
+        </Text>
+
+        <Switch
+          value={singlePageEnabled}
+          onValueChange={handleSinglePageChange}
+        />
       </View>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Preferred reading mode
+        </Text>
+        <View
+          style={[
+            styles.modeGroup,
+            { backgroundColor: colors.surface },
+          ]}
+        >
+          {options.map((option) => {
+            const selected = readMode === option.value;
+
+            return (
+              <Pressable
+                key={option.value}
+                disabled={singlePageEnabled}
+                style={[
+                  styles.option,
+                  selected && styles.selectedOption,
+                  singlePageEnabled && styles.disabledOption,
+                ]}
+                onPress={() => handleModeChange(option.value)}
+                accessibilityRole="radio"
+                accessibilityState={{
+                  selected,
+                  disabled: singlePageEnabled,
+                }}
+              >
+                <Text
+                  style={[
+                    styles.optionText,
+                    { color: selected ? "#ffffff" : colors.text },
+                    singlePageEnabled && styles.disabledOptionText,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       <View
         style={[
           styles.row,
@@ -129,7 +150,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  checkmark: {
+  disabledOption: {
+  opacity: 0.45,
+  },
+
+  disabledOptionText: {
+    color: "#888888",
+  },
+    checkmark: {
     color: "#4f8cff",
     fontWeight: "600",
   },

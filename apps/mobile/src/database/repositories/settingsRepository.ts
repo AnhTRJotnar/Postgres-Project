@@ -1,8 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const KEY = "preferredReadingMode";
+const SINGLE_PAGE_KEY = "singlePageEnabled";
 
 export type PreferredReadingMode =  "auto" | "scroll" | "book";
+
+export async function getSinglePageEnabled(): Promise<boolean> {
+  return (await AsyncStorage.getItem(SINGLE_PAGE_KEY)) === "true";
+}
+
+export function saveSinglePageEnabled(enabled: boolean): Promise<void> {
+  return AsyncStorage.setItem(SINGLE_PAGE_KEY, String(enabled));
+}
 
 export async function getPreferredReadingMode(): Promise<PreferredReadingMode> {
   const value = await AsyncStorage.getItem(KEY);

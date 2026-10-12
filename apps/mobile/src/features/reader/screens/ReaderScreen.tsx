@@ -1,20 +1,18 @@
+import Pdf from "react-native-pdf";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Button, StyleSheet, Text, View,  useWindowDimensions, } from "react-native";
+import { ActivityIndicator, Alert, Button, Pressable, StyleSheet, Text, View,  useWindowDimensions, } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+
 import type { RootStackParamList } from "../../../app/navigation/types";
 import type { LocalDocument } from "../../../shared/types/document";
 import { getAllDocuments } from "../../../database/repositories/documentRepository";
-import Pdf from "react-native-pdf";
 import { getReadingPosition as getLocalReadingPosition, saveReadingPosition as saveLocalReadingPosition, } from "../../../database/repositories/readingPositionRepository";
 import { getReadingPosition as getApiReadingPosition, saveReadingPosition as saveApiReadingPosition, } from "../../../shared/api/readingPositionsApi";
 import { addBookmark as addLocalBookmark, } from "../../../database/repositories/bookmarkRepository";
 import { saveBookmark as saveApiBookmark, } from "../../../shared/api/bookmarksApi";
 import type { ReadingMode } from "@kindle-pdf-reader/shared";
 import { useTheme } from "../../../shared/theme/ThemeContext";
-import {
-  getPreferredReadingMode,
-  type PreferredReadingMode,
-} from "../../../database/repositories/settingsRepository";
+import { getPreferredReadingMode, getSinglePageEnabled, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
 import { StatusBar } from "expo-status-bar";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Reader">;
@@ -27,10 +25,12 @@ export default function ReaderScreen({ navigation, route}: Props) {
     const [pageCount, setPageCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(initialPage);
     const { width, height } = useWindowDimensions();
+    const pdfRef = useRef<{ setPage: (page: number) => void } | null>(null);
  
     const { colors, mode } = useTheme();
     const [preferredMode, setPreferredMode] = useState<PreferredReadingMode>("auto");
-    
+    const [singlePageEnabled, setSinglePageEnabled] = useState(false);
+
     const orientationMode: ReadingMode = width > height ? "book" : "scroll";
     const readingMode: ReadingMode = preferredMode === "auto" ? orientationMode : preferredMode;   
 
@@ -71,9 +71,13 @@ export default function ReaderScreen({ navigation, route}: Props) {
         };
     }, [navigation, controlsVisible]);
     useEffect(() => {
-        getPreferredReadingMode()
-            .then(setPreferredMode)
-            .catch((error) => {
+        Promise.all([
+            getPreferredReadingMode(),
+            getSinglePageEnabled(),
+        ]).then(([mode, singlePage]) => {
+            setPreferredMode(mode);
+            setSinglePageEnabled(singlePage);
+        }).catch((error) => {
             console.warn("Could not load preferred reading mode:", error);
         });
         getAllDocuments().then(async (documents) => {
@@ -149,6 +153,14 @@ export default function ReaderScreen({ navigation, route}: Props) {
         }
     }
 
+    function goToPage(page: number) {
+        const nextPage = Math.max(1, Math.min(pageCount, page));
+
+        if (nextPage !== currentPage) {
+            pdfRef.current?.setPage(nextPage);
+        }
+    }
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar hidden={!controlsVisible} style={mode === "dark" ? "light" : "dark"}/>
@@ -168,12 +180,13 @@ export default function ReaderScreen({ navigation, route}: Props) {
             </View>
 
             <Pdf
-                key={`${documentId}-${readingMode}-${reloadKey ?? 0}`}
+                ref={pdfRef}
+                key={`${documentId}-${readingMode}-${singlePageEnabled}-${reloadKey ?? 0}`}
                 source={{ uri: document.localUri }}
                 page={initialPage}
                 style={[styles.pdf, { backgroundColor: colors.background },]}
-                horizontal={readingMode === "book"}
-                enablePaging={readingMode === "book"}
+                horizontal={singlePageEnabled || readingMode === "book"}
+                enablePaging={singlePageEnabled || readingMode === "book"}
                 onPageSingleTap={toggleControls}
                 onLoadComplete={(totalPages) => {
                     setPageCount(totalPages);
@@ -202,31 +215,89 @@ export default function ReaderScreen({ navigation, route}: Props) {
                     setError("Could not open this PDF.");
                 }}
             />
+            {singlePageEnabled && controlsVisible && (
+            <>
+                <Pressable
+                    style={[styles.pageTapZone, styles.leftPageTapZone]}
+                    disabled={currentPage <= 1}
+                    onPress={() => {
+                        goToPage(currentPage - 1);
+                        revealControls();
+                    }}
+                    accessibilityLabel="Previous page"
+                />
+
+                <Pressable
+                    style={[styles.pageTapZone, styles.rightPageTapZone]}
+                    disabled={currentPage >= pageCount}
+                    onPress={() => {
+                        goToPage(currentPage + 1);
+                        revealControls();
+                    }}
+                    accessibilityLabel="Next page"
+                />
+
+                <View pointerEvents="none" style={[styles.pageIndicator, { backgroundColor: colors.surface }, ]}>
+                    <Text style={[styles.pageIndicatorText, { color: colors.text }]}>
+                        {currentPage} / {pageCount}
+                    </Text>
+                </View>
+            </>
+            )}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-  },
-  title: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: 16,
+    container: { flex: 1 },
+    center: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    toolbar: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 12,
+    },
+    title: {
+        flex: 1,
+        marginRight: 12,
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    pdf: {
+        flex: 1,
+        width: "100%",
+    },
+    pageTapZone: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: "25%",
+    },
+
+    leftPageTapZone: {
+    left: 0,
+    },
+
+    rightPageTapZone: {
+    right: 0,
+    },
+
+    pageIndicator: {
+    position: "absolute",
+    bottom: 24,
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    opacity: 0.9,
+    },
+
+    pageIndicatorText: {
+    fontSize: 14,
     fontWeight: "600",
-  },
-  pdf: {
-    flex: 1,
-    width: "100%",
-  },
+    },
 });
