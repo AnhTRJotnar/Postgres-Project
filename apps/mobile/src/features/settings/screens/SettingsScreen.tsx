@@ -45,14 +45,12 @@ export default function SettingsScreen() {
       <View style={[styles.modeGroup, { backgroundColor: colors.surface },]}>
         {options.map((option) => {
           const selected = readMode === option.value;
-
           return (
             <Pressable
               key={option.value}
               style={[
                 styles.option,
                 selected && styles.selectedOption,
-                tapToChangePage && styles.disabledOption,
               ]}
               onPress={() => handleModeChange(option.value)}
               accessibilityRole="radio"
