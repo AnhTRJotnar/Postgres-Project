@@ -12,7 +12,7 @@ import { addBookmark as addLocalBookmark, } from "../../../database/repositories
 import { saveBookmark as saveApiBookmark, } from "../../../shared/api/bookmarksApi";
 import type { ReadingMode } from "@kindle-pdf-reader/shared";
 import { useTheme } from "../../../shared/theme/ThemeContext";
-import { getPreferredReadingMode, getSinglePageEnabled, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
+import { getPreferredReadingMode, getTapToChangePage, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
 import { StatusBar } from "expo-status-bar";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Reader">;
@@ -29,7 +29,7 @@ export default function ReaderScreen({ navigation, route}: Props) {
  
     const { colors, mode } = useTheme();
     const [preferredMode, setPreferredMode] = useState<PreferredReadingMode>("auto");
-    const [singlePageEnabled, setSinglePageEnabled] = useState(false);
+    const [tapToChangePage, setTapToChangePage] = useState(false);
 
     const orientationMode: ReadingMode = width > height ? "book" : "scroll";
     const readingMode: ReadingMode = preferredMode === "auto" ? orientationMode : preferredMode;   
@@ -73,10 +73,10 @@ export default function ReaderScreen({ navigation, route}: Props) {
     useEffect(() => {
         Promise.all([
             getPreferredReadingMode(),
-            getSinglePageEnabled(),
-        ]).then(([mode, singlePage]) => {
+            getTapToChangePage(),
+        ]).then(([mode, tapToChangePage]) => {
             setPreferredMode(mode);
-            setSinglePageEnabled(singlePage);
+            setTapToChangePage(tapToChangePage);
         }).catch((error) => {
             console.warn("Could not load preferred reading mode:", error);
         });
@@ -181,12 +181,12 @@ export default function ReaderScreen({ navigation, route}: Props) {
 
             <Pdf
                 ref={pdfRef}
-                key={`${documentId}-${readingMode}-${singlePageEnabled}-${reloadKey ?? 0}`}
+                key={`${documentId}-${readingMode}-${tapToChangePage}-${reloadKey ?? 0}`}
                 source={{ uri: document.localUri }}
                 page={initialPage}
                 style={[styles.pdf, { backgroundColor: colors.background },]}
-                horizontal={singlePageEnabled || readingMode === "book"}
-                enablePaging={singlePageEnabled || readingMode === "book"}
+                horizontal={tapToChangePage || readingMode === "book"}
+                enablePaging={tapToChangePage || readingMode === "book"}
                 onPageSingleTap={toggleControls}
                 onLoadComplete={(totalPages) => {
                     setPageCount(totalPages);
@@ -215,33 +215,27 @@ export default function ReaderScreen({ navigation, route}: Props) {
                     setError("Could not open this PDF.");
                 }}
             />
-            {singlePageEnabled && controlsVisible && (
+            {readingMode === "book" && tapToChangePage && (
             <>
                 <Pressable
-                    style={[styles.pageTapZone, styles.leftPageTapZone]}
-                    disabled={currentPage <= 1}
-                    onPress={() => {
-                        goToPage(currentPage - 1);
-                        revealControls();
-                    }}
-                    accessibilityLabel="Previous page"
+                style={[styles.pageTapZone, styles.leftPageTapZone]}
+                disabled={currentPage <= 1}
+                onPress={() => {
+                    goToPage(currentPage - 1);
+                    revealControls();
+                }}
+                accessibilityLabel="Previous page"
                 />
 
                 <Pressable
-                    style={[styles.pageTapZone, styles.rightPageTapZone]}
-                    disabled={currentPage >= pageCount}
-                    onPress={() => {
-                        goToPage(currentPage + 1);
-                        revealControls();
-                    }}
-                    accessibilityLabel="Next page"
+                style={[styles.pageTapZone, styles.rightPageTapZone]}
+                disabled={currentPage >= pageCount}
+                onPress={() => {
+                    goToPage(currentPage + 1);
+                    revealControls();
+                }}
+                accessibilityLabel="Next page"
                 />
-
-                <View pointerEvents="none" style={[styles.pageIndicator, { backgroundColor: colors.surface }, ]}>
-                    <Text style={[styles.pageIndicatorText, { color: colors.text }]}>
-                        {currentPage} / {pageCount}
-                    </Text>
-                </View>
             </>
             )}
         </View>

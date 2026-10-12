@@ -1,16 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const KEY = "preferredReadingMode";
-const SINGLE_PAGE_KEY = "singlePageEnabled";
+const TAP_TO_CHANGE_PAGE_KEY = "tapToChangePage";
 
 export type PreferredReadingMode =  "auto" | "scroll" | "book";
 
-export async function getSinglePageEnabled(): Promise<boolean> {
-  return (await AsyncStorage.getItem(SINGLE_PAGE_KEY)) === "true";
+export async function getTapToChangePage(): Promise<boolean> {
+  return (await AsyncStorage.getItem(TAP_TO_CHANGE_PAGE_KEY)) === "true";
 }
 
-export function saveSinglePageEnabled(enabled: boolean): Promise<void> {
-  return AsyncStorage.setItem(SINGLE_PAGE_KEY, String(enabled));
+export function saveTapToChangePage(enabled: boolean): Promise<void> {
+  return AsyncStorage.setItem(TAP_TO_CHANGE_PAGE_KEY, String(enabled));
 }
 
 export async function getPreferredReadingMode(): Promise<PreferredReadingMode> {

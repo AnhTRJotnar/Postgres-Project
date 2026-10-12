@@ -1,6 +1,6 @@
 import { Pressable, View, Text, StyleSheet, Switch } from "react-native";
 import { useTheme } from "../../../shared/theme/ThemeContext";
-import { getPreferredReadingMode, savePreferredReadingMode, getSinglePageEnabled, saveSinglePageEnabled, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
+import { getPreferredReadingMode, savePreferredReadingMode, getTapToChangePage, saveTapToChangePage, type PreferredReadingMode, } from "../../../database/repositories/settingsRepository";
 import { useEffect, useState } from "react";
 
 const options: {
@@ -14,16 +14,16 @@ const options: {
 
 export default function SettingsScreen() {
   const { mode, colors, toggleMode } = useTheme();
-  const [singlePageEnabled, setSinglePageEnabled] = useState(false);
+  const [tapToChangePage, setTapToChangePage] = useState(false);
   const [readMode, setMode] = useState<PreferredReadingMode>("auto");
 
   useEffect(() => {
     Promise.all([
       getPreferredReadingMode(),
-      getSinglePageEnabled(),
+      getTapToChangePage(),
     ]).then(([readingMode, enabled]) => {
       setMode(readingMode);
-      setSinglePageEnabled(enabled);
+      setTapToChangePage(enabled);
     });
   }, []);
 
@@ -33,63 +33,58 @@ export default function SettingsScreen() {
   }
 
   async function handleSinglePageChange(enabled: boolean) {
-    setSinglePageEnabled(enabled);
-    await saveSinglePageEnabled(enabled);
+    setTapToChangePage(enabled);
+    await saveTapToChangePage(enabled);
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }, ]}>
+      <Text style={[styles.title, { color: colors.text }]}>
+        Preferred reading mode
+      </Text>
+      <View style={[styles.modeGroup, { backgroundColor: colors.surface },]}>
+        {options.map((option) => {
+          const selected = readMode === option.value;
+
+          return (
+            <Pressable
+              key={option.value}
+              style={[
+                styles.option,
+                selected && styles.selectedOption,
+                tapToChangePage && styles.disabledOption,
+              ]}
+              onPress={() => handleModeChange(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{
+                selected,
+              }}
+            >
+              <Text
+                style={[
+                  styles.optionText,
+                  { color: selected ? "#ffffff" : colors.text },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
       <View style={[styles.row, { backgroundColor: colors.surface }]}>
         <Text style={[styles.title, { color: colors.text }]}>
-          Single page mode
+          Enable tap to change page (Book mode)
         </Text>
 
         <Switch
-          value={singlePageEnabled}
-          onValueChange={handleSinglePageChange}
+          value={tapToChangePage}
+          onValueChange={async (enabled) => {
+            setTapToChangePage(enabled);
+            await saveTapToChangePage(enabled);
+          }}
         />
       </View>
-        <Text style={[styles.title, { color: colors.text }]}>
-          Preferred reading mode
-        </Text>
-        <View
-          style={[
-            styles.modeGroup,
-            { backgroundColor: colors.surface },
-          ]}
-        >
-          {options.map((option) => {
-            const selected = readMode === option.value;
-
-            return (
-              <Pressable
-                key={option.value}
-                disabled={singlePageEnabled}
-                style={[
-                  styles.option,
-                  selected && styles.selectedOption,
-                  singlePageEnabled && styles.disabledOption,
-                ]}
-                onPress={() => handleModeChange(option.value)}
-                accessibilityRole="radio"
-                accessibilityState={{
-                  selected,
-                  disabled: singlePageEnabled,
-                }}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    { color: selected ? "#ffffff" : colors.text },
-                    singlePageEnabled && styles.disabledOptionText,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
       <View
         style={[
           styles.row,
@@ -168,6 +163,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 16,
   },
   title: {
     fontSize: 17,
