@@ -23,6 +23,8 @@ export default function ReaderScreen({ navigation, route}: Props) {
     const [document, setDocument] = useState<LocalDocument | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [initialPage, setInitialPage] = useState(1);
+    const [initialScale, setInitialScale] = useState(1);
+    const currentScale = useRef(1);
     const [pageCount, setPageCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(initialPage);
     const { width, height } = useWindowDimensions();
@@ -39,6 +41,34 @@ export default function ReaderScreen({ navigation, route}: Props) {
 
     const [controlsVisible, setControlsVisible] = useState(false);
     const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    type ApiPositionPayload = Parameters<typeof saveApiReadingPosition>[1];
+
+    const apiSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingApiPosition = useRef<ApiPositionPayload | null>(null);
+
+    const scheduleApiPositionSync = useCallback((position: ApiPositionPayload) => {
+        pendingApiPosition.current = position;
+
+        if (apiSyncTimer.current) {
+            clearTimeout(apiSyncTimer.current);
+        }
+
+        apiSyncTimer.current = setTimeout(() => {
+            const pendingPos = pendingApiPosition.current;
+
+            apiSyncTimer.current = null;
+            pendingApiPosition.current = null;
+
+            if (!pendingPos) {
+                return;
+            }
+
+            saveApiReadingPosition(documentId, pendingPos).catch((error) => {
+                console.warn("Could not sync reading position:", error);
+            });
+        }, 1000);
+    }, [documentId]);
 
     const showPageIndicator = useCallback(() => {
     setPageIndicatorVisible(true);
@@ -80,15 +110,16 @@ export default function ReaderScreen({ navigation, route}: Props) {
         navigation.setOptions({
             headerShown: false,
         });
-    }, [navigation]);
-
-    useEffect(() => {
         return () => {
             if (pageIndicatorTimer.current) {
                 clearTimeout(pageIndicatorTimer.current);
             }
+
+            if (apiSyncTimer.current) {
+                clearTimeout(apiSyncTimer.current);
+            }
         };
-    }, []);
+    }, [navigation]);
     useEffect(() => {
         Promise.all([
             getPreferredReadingMode(),
@@ -104,12 +135,22 @@ export default function ReaderScreen({ navigation, route}: Props) {
             if (pageNumber) {
                 setInitialPage(pageNumber);
                 setCurrentPage(pageNumber);
+
+                const localPosition = await getLocalReadingPosition(documentId);
+                const scale = localPosition?.zoomScale ?? 1;
+
+                setInitialScale(scale);
+                currentScale.current = scale;
             } else {
                 const localPosition = await getLocalReadingPosition(documentId);
 
                 if (localPosition) {
                     setInitialPage(localPosition.pageNumber);
                     setCurrentPage(localPosition.pageNumber);
+                    
+                    const scale = localPosition.zoomScale ?? 1;
+                    setInitialScale(scale);
+                    currentScale.current = scale;
                 } else {
                     try {
                         const apiPosition = await getApiReadingPosition(documentId);
@@ -117,11 +158,16 @@ export default function ReaderScreen({ navigation, route}: Props) {
                         if (apiPosition) {
                             setInitialPage(apiPosition.pageNumber);
                             setCurrentPage(apiPosition.pageNumber);
+
+                            const scale = apiPosition.zoomScale ?? 1;
+                            setInitialScale(scale);
+                            currentScale.current = scale;
+
                             await saveLocalReadingPosition(documentId, {
                                 pageNumber: apiPosition.pageNumber,
                                 progressPercent: apiPosition.progressPercent,
                                 readingMode: apiPosition.readingMode,
-                                zoomScale: apiPosition.zoomScale,
+                                zoomScale: scale,
                             });
                         }
                     } catch (error) {
@@ -210,6 +256,7 @@ export default function ReaderScreen({ navigation, route}: Props) {
                     key={`${documentId}-${readingMode}-${reloadKey ?? 0}`}
                     source={{ uri: document.localUri }}
                     page={initialPage}
+                    scale={initialScale}
                     style={[styles.pdf, { backgroundColor: colors.background },]}
                     horizontal={readingMode === "book"}
                     enablePaging={readingMode === "book"}
@@ -231,17 +278,19 @@ export default function ReaderScreen({ navigation, route}: Props) {
                             pageNumber: page,
                             progressPercent: (page / totalPages) * 100,
                             readingMode,
+                            zoomScale: currentScale.current,
                         };
 
                         saveLocalReadingPosition(documentId, position)
-                        .then((savedPosition) => {
-                            const { id, documentId: _documentId, updatedAt, ...apiPosition } = savedPosition;
-
-                            return saveApiReadingPosition(documentId, apiPosition);
-                        })
                         .catch((error) => {
                             console.warn("Could not save reading position:", error);
                         });
+
+
+                        scheduleApiPositionSync(position);
+                    }}
+                    onScaleChanged={(scale) => {
+                        currentScale.current = scale;
                     }}
                     onError={(pdfError) => {
                         console.error("PDF failed to load", pdfError);
@@ -264,25 +313,10 @@ export default function ReaderScreen({ navigation, route}: Props) {
 
                 {readingMode === "book" && tapToChangePage && (
                 <>
-                    <Pressable
-                    style={[styles.pageTapZone, styles.leftPageTapZone]}
-                    disabled={currentPage <= 1}
-                    onPress={() => {
-                        goToPage(currentPage - 1);
-                    }}
-                    accessibilityLabel="Previous page"
-                    />
+                    <Pressable style={[styles.pageTapZone, styles.leftPageTapZone]} disabled={currentPage <= 1} onPress={() => { goToPage(currentPage - 1);}} accessibilityLabel="Previous page"/>
 
-                    <Pressable
-                    style={[styles.pageTapZone, styles.rightPageTapZone]}
-                    disabled={currentPage >= pageCount}
-                    onPress={() => {
-                        goToPage(currentPage + 1);
-                    }}
-                    accessibilityLabel="Next page"
-                    />
-                </>
-                )}                
+                    <Pressable style={[styles.pageTapZone, styles.rightPageTapZone]} disabled={currentPage >= pageCount} onPress={() => { goToPage(currentPage + 1); }} accessibilityLabel="Next page"/>
+                </>)}                
             </View>
 
 
