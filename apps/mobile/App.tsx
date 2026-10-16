@@ -7,6 +7,7 @@ import LibraryScreen from "./src/features/library/screens/LibraryScreen";
 import ReaderScreen from "./src/features/reader/screens/ReaderScreen";
 import BookmarkScreen from "./src/features/bookmarks/screens/BookmarkScreen";
 import SettingsScreen from "./src/features/settings/screens/SettingsScreen";
+import LoginScreen from "./src/features/auth/screens/LoginScreen";
 
 import { ThemeProvider } from "./src/shared/theme/ThemeContext";
 import { useTheme } from "./src/shared/theme/ThemeContext";
@@ -53,6 +54,11 @@ function AppNavigation() {
           name="Settings"
           component={SettingsScreen}
           options={{ title: "Settings" }}
+        />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ title: "Login" }}
         />
       </Stack.Navigator>
     </NavigationContainer> 

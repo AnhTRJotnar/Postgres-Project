@@ -3,4 +3,5 @@ export type RootStackParamList = {
   Reader: { documentId: string; pageNumber?: number;   reloadKey?: number; };
   Bookmarks: { documentId: string };
   Settings: undefined;
+  Login: undefined;
 };
